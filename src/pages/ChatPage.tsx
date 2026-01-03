@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Image, Check, CheckCheck, Lock, MoreVertical, Ban } from "lucide-react";
+import { ArrowLeft, Send, Image, Check, CheckCheck, Lock, MoreVertical, Ban, Phone, Video } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CallButton } from "@/components/call/CallButton";
+import { useCallContext } from "@/components/call/CallProvider";
 
 interface Message {
   id: string;
@@ -80,12 +82,26 @@ const ChatPage = () => {
 
   const { handleTyping } = useTypingIndicator(chatId, user?.id);
   const { isBlocked, isBlockedByOther, isAnyBlocked, blockUser, unblockUser, loading: blockLoading } = useBlocking(otherUser?.id);
+  const { startCall, isBlocked: callBlocked } = useCallContext();
   
   // Update user activity
   useOnlineStatus(user?.id);
   
   // Get online status for other user
   const onlineStatus = getOnlineStatusText(otherUser?.last_active_at || null);
+  
+  // Call handlers
+  const handleVoiceCall = () => {
+    if (otherUser && !isAnyBlocked) {
+      startCall(otherUser.id, 'voice');
+    }
+  };
+
+  const handleVideoCall = () => {
+    if (otherUser && !isAnyBlocked) {
+      startCall(otherUser.id, 'video');
+    }
+  };
   
   useTypingSubscription(chatId, user?.id, useCallback((isTyping: boolean) => {
     setIsOtherTyping(isTyping);
@@ -422,6 +438,11 @@ const ChatPage = () => {
             </div>
           </Link>
         )}
+        <CallButton
+          onVoiceCall={handleVoiceCall}
+          onVideoCall={handleVideoCall}
+          disabled={isAnyBlocked}
+        />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">

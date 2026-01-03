@@ -1,4 +1,4 @@
-import { Home, Search, PlusSquare, MessageCircle, User, Bell, Moon, Sun, LogOut, Settings } from "lucide-react";
+import { Home, Search, PlusSquare, MessageCircle, User, Bell, Moon, Sun, LogOut, Settings, Phone } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const navItems = [
   { icon: Search, path: "/search", label: "Search" },
   { icon: PlusSquare, path: "/create", label: "Create" },
   { icon: MessageCircle, path: "/messages", label: "Messages" },
+  { icon: Phone, path: "/calls", label: "Calls" },
   { icon: Bell, path: "/notifications", label: "Notifications" },
 ];
 
