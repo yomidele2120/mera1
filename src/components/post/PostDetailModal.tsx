@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Share2, Bookmark, X, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { UserAvatar } from "@/components/common/Avatar";
 import { CommentSection } from "./CommentSection";
+import { PostContent } from "./PostContent";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,8 +15,10 @@ import { cn } from "@/lib/utils";
 interface Post {
   id: string;
   user_id: string;
-  caption: string;
-  media_url: string;
+  caption: string | null;
+  media_url: string | null;
+  text_content?: string | null;
+  post_type?: string;
   created_at: string;
   profiles: {
     username: string;
@@ -39,6 +42,8 @@ export const PostDetailModal = ({ post, isOpen, onClose, onLikeToggle }: PostDet
   const [likesCount, setLikesCount] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLikeAnimating, setIsLikeAnimating] = useState(false);
+
+  const postType = post?.post_type || (post?.media_url ? "image" : "text");
 
   useEffect(() => {
     if (post) {
@@ -98,27 +103,28 @@ export const PostDetailModal = ({ post, isOpen, onClose, onLikeToggle }: PostDet
         className="h-[95vh] md:h-[90vh] p-0 rounded-t-3xl md:rounded-t-2xl overflow-hidden"
       >
         <div className="flex flex-col md:flex-row h-full">
-          {/* Image Section */}
-          <div className="relative w-full md:w-1/2 lg:w-3/5 bg-black flex items-center justify-center aspect-square md:aspect-auto md:h-full">
-            <img
-              src={post.media_url}
-              alt={post.caption}
-              className="max-h-full max-w-full object-contain"
-            />
-            
-            {/* Double tap heart animation */}
-            {isLikeAnimating && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1.2, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              >
-                <motion.div animate={{ scale: [1.2, 1] }} transition={{ duration: 0.3 }}>
-                  <Heart className="h-24 w-24 fill-white text-white drop-shadow-lg" />
+          {/* Media Section */}
+          <div className="relative w-full md:w-1/2 lg:w-3/5 bg-muted flex items-center justify-center aspect-square md:aspect-auto md:h-full overflow-hidden">
+            <PostContent
+              postType={postType}
+              mediaUrl={post.media_url}
+              textContent={post.text_content}
+              caption={post.caption}
+            >
+              {/* Double tap heart animation */}
+              {isLikeAnimating && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1.2, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                >
+                  <motion.div animate={{ scale: [1.2, 1] }} transition={{ duration: 0.3 }}>
+                    <Heart className="h-24 w-24 fill-white text-white drop-shadow-lg" />
+                  </motion.div>
                 </motion.div>
-              </motion.div>
-            )}
+              )}
+            </PostContent>
           </div>
 
           {/* Details Section */}
@@ -149,7 +155,7 @@ export const PostDetailModal = ({ post, isOpen, onClose, onLikeToggle }: PostDet
             </SheetHeader>
 
             {/* Caption */}
-            {post.caption && (
+            {post.caption && postType !== "text" && (
               <div className="flex-shrink-0 p-4 border-b border-border">
                 <p className="text-sm text-foreground">
                   <Link 
