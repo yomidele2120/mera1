@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocked_users_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocked_users_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chats: {
         Row: {
           created_at: string
@@ -318,8 +354,10 @@ export type Database = {
           chat_background_url: string | null
           created_at: string
           id: string
+          last_active_at: string | null
           public_key: string | null
           updated_at: string
+          user_number: number | null
           username: string
         }
         Insert: {
@@ -328,8 +366,10 @@ export type Database = {
           chat_background_url?: string | null
           created_at?: string
           id: string
+          last_active_at?: string | null
           public_key?: string | null
           updated_at?: string
+          user_number?: number | null
           username: string
         }
         Update: {
@@ -338,11 +378,75 @@ export type Database = {
           chat_background_url?: string | null
           created_at?: string
           id?: string
+          last_active_at?: string | null
           public_key?: string | null
           updated_at?: string
+          user_number?: number | null
           username?: string
         }
         Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          reported_message_id: string | null
+          reported_post_id: string | null
+          reported_user_id: string | null
+          reporter_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          reported_message_id?: string | null
+          reported_post_id?: string | null
+          reported_user_id?: string | null
+          reporter_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          reported_message_id?: string | null
+          reported_post_id?: string | null
+          reported_user_id?: string | null
+          reporter_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reported_message_id_fkey"
+            columns: ["reported_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reported_post_id_fkey"
+            columns: ["reported_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reported_user_id_fkey"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stories: {
         Row: {
@@ -456,7 +560,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_blocked: { Args: { user_a: string; user_b: string }; Returns: boolean }
+      update_last_active: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
