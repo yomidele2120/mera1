@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Trash2, Loader2 } from "lucide-react";
+import { Send, Trash2, Loader2, Reply, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { UserAvatar } from "@/components/common/Avatar";
@@ -9,16 +9,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Comment {
   id: string;
   text: string;
   created_at: string;
   user_id: string;
+  parent_id: string | null;
   profiles: {
     username: string;
     avatar_url: string | null;
   };
+  replies?: Comment[];
 }
 
 interface CommentSectionProps {
@@ -33,11 +36,12 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchComments();
 
-    // Set up realtime subscription
     const channel = supabase
       .channel(`comments-${postId}`)
       .on(
@@ -68,6 +72,7 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
         text,
         created_at,
         user_id,
+        parent_id,
         profiles (username, avatar_url)
       `
       )
@@ -79,7 +84,27 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
       return;
     }
 
-    setComments((data as unknown as Comment[]) || []);
+    // Organize comments into threads
+    const commentsMap = new Map<string, Comment>();
+    const topLevelComments: Comment[] = [];
+
+    (data as unknown as Comment[])?.forEach((comment) => {
+      commentsMap.set(comment.id, { ...comment, replies: [] });
+    });
+
+    commentsMap.forEach((comment) => {
+      if (comment.parent_id) {
+        const parent = commentsMap.get(comment.parent_id);
+        if (parent) {
+          parent.replies = parent.replies || [];
+          parent.replies.push(comment);
+        }
+      } else {
+        topLevelComments.push(comment);
+      }
+    });
+
+    setComments(topLevelComments);
     setIsLoading(false);
   };
 
@@ -92,6 +117,7 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
       post_id: postId,
       user_id: user.id,
       text: newComment.trim(),
+      parent_id: replyingTo?.id || null,
     });
 
     if (error) {
@@ -111,6 +137,7 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
         });
       }
       setNewComment("");
+      setReplyingTo(null);
     }
     setIsSubmitting(false);
   };
@@ -125,6 +152,106 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
         variant: "destructive",
       });
     }
+  };
+
+  const toggleReplies = (commentId: string) => {
+    setExpandedReplies((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) {
+        next.delete(commentId);
+      } else {
+        next.add(commentId);
+      }
+      return next;
+    });
+  };
+
+  const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => {
+    const hasReplies = comment.replies && comment.replies.length > 0;
+    const isExpanded = expandedReplies.has(comment.id);
+
+    return (
+      <div className={cn("flex flex-col", isReply && "ml-10")}>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="flex gap-3 group"
+        >
+          <Link to={`/user/${comment.profiles.username}`}>
+            <UserAvatar
+              src={comment.profiles.avatar_url}
+              fallback={comment.profiles.username}
+              size="sm"
+            />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <Link
+                  to={`/user/${comment.profiles.username}`}
+                  className="font-semibold text-sm text-foreground hover:underline"
+                >
+                  {comment.profiles.username}
+                </Link>
+                <span className="text-sm text-foreground ml-2">{comment.text}</span>
+              </div>
+              {comment.user_id === user?.id && (
+                <button
+                  onClick={() => handleDelete(comment.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+              </p>
+              {!isReply && user && (
+                <button
+                  onClick={() => setReplyingTo({ id: comment.id, username: comment.profiles.username })}
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  <Reply className="h-3 w-3" />
+                  Reply
+                </button>
+              )}
+              {hasReplies && (
+                <button
+                  onClick={() => toggleReplies(comment.id)}
+                  className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                >
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp className="h-3 w-3" />
+                      Hide replies
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-3 w-3" />
+                      View {comment.replies!.length} {comment.replies!.length === 1 ? "reply" : "replies"}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Replies */}
+        {hasReplies && isExpanded && (
+          <div className="mt-3 space-y-3">
+            <AnimatePresence>
+              {comment.replies!.map((reply) => (
+                <CommentItem key={reply.id} comment={reply} isReply />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -147,49 +274,26 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
         ) : (
           <AnimatePresence>
             {comments.map((comment) => (
-              <motion.div
-                key={comment.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex gap-3 group"
-              >
-                <Link to={`/user/${comment.profiles.username}`}>
-                  <UserAvatar
-                    src={comment.profiles.avatar_url}
-                    fallback={comment.profiles.username}
-                    size="sm"
-                  />
-                </Link>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <Link
-                        to={`/user/${comment.profiles.username}`}
-                        className="font-semibold text-sm text-foreground hover:underline"
-                      >
-                        {comment.profiles.username}
-                      </Link>
-                      <span className="text-sm text-foreground ml-2">{comment.text}</span>
-                    </div>
-                    {comment.user_id === user?.id && (
-                      <button
-                        onClick={() => handleDelete(comment.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-              </motion.div>
+              <CommentItem key={comment.id} comment={comment} />
             ))}
           </AnimatePresence>
         )}
       </div>
+
+      {/* Reply indicator */}
+      {replyingTo && (
+        <div className="border-t border-border px-4 py-2 bg-muted/50 flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Replying to <span className="font-semibold text-foreground">@{replyingTo.username}</span>
+          </p>
+          <button
+            onClick={() => setReplyingTo(null)}
+            className="text-sm text-primary hover:text-primary/80"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* Comment Input */}
       {user && (
@@ -198,7 +302,7 @@ export const CommentSection = ({ postId, postOwnerId }: CommentSectionProps) => 
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
+              placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment..."}
               className="min-h-[40px] max-h-[120px] resize-none bg-muted/50"
               rows={1}
             />

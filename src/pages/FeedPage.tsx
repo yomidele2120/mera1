@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PostCard } from "@/components/post/PostCard";
+import { PostDetailModal } from "@/components/post/PostDetailModal";
 import { StoriesBar } from "@/components/story/StoriesBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,20 +36,18 @@ const FeedPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [storyUsers, setStoryUsers] = useState<StoryUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const fetchFeed = async () => {
     if (!user) return;
 
     try {
-      // Get users the current user is following
       const { data: following } = await supabase
         .from("followers")
         .select("following_id")
         .eq("follower_id", user.id);
 
       const followingIds = following?.map((f) => f.following_id) || [];
-      
-      // Include own posts in feed
       const userIds = [...followingIds, user.id];
 
       if (userIds.length === 0) {
@@ -57,7 +56,6 @@ const FeedPage = () => {
         return;
       }
 
-      // Fetch posts from followed users
       const { data: postsData, error } = await supabase
         .from("posts")
         .select(`
@@ -73,7 +71,6 @@ const FeedPage = () => {
       if (error) throw error;
       setPosts(postsData || []);
 
-      // Fetch stories from followed users
       const { data: storiesData } = await supabase
         .from("stories")
         .select(`
@@ -86,7 +83,6 @@ const FeedPage = () => {
         .gte("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false });
 
-      // Group stories by user
       const storyUsersMap = new Map<string, StoryUser>();
       storiesData?.forEach((story) => {
         if (!storyUsersMap.has(story.user_id)) {
@@ -111,6 +107,10 @@ const FeedPage = () => {
   useEffect(() => {
     fetchFeed();
   }, [user]);
+
+  const handlePostClick = (post: Post) => {
+    setSelectedPost(post);
+  };
 
   if (loading) {
     return (
@@ -162,11 +162,20 @@ const FeedPage = () => {
                 key={post.id}
                 post={post}
                 onLikeToggle={fetchFeed}
+                onCommentClick={() => handlePostClick(post)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Post Detail Modal */}
+      <PostDetailModal
+        post={selectedPost}
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPost(null)}
+        onLikeToggle={fetchFeed}
+      />
     </MainLayout>
   );
 };
