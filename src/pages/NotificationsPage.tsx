@@ -4,6 +4,7 @@ import { Bell, Heart, MessageCircle, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
+import { BackButton } from "@/components/common/BackButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -140,7 +141,10 @@ const NotificationsPage = () => {
   return (
     <MainLayout>
       <div className="animate-fade-up">
-        <h1 className="font-display text-2xl font-bold text-foreground mb-6">Notifications</h1>
+        <div className="flex items-center gap-3 mb-6">
+          <BackButton className="md:hidden" />
+          <h1 className="font-display text-2xl font-bold text-foreground">Notifications</h1>
+        </div>
 
         {notifications.length === 0 ? (
           <div className="card-base p-8 text-center">

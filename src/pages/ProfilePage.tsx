@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Grid3X3, Settings, MessageCircle, UserPlus, UserCheck, CalendarDays, MoreVertical, Play, Ban, Flag } from "lucide-react";
+import { Grid3X3, Settings, MessageCircle, UserPlus, UserCheck, CalendarDays, MoreVertical, Play, Ban, Flag, ArrowLeft } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Button } from "@/components/ui/button";
@@ -224,6 +224,17 @@ const ProfilePage = () => {
   return (
     <MainLayout>
       <div className="animate-fade-up">
+        {/* Back button for viewing other users */}
+        {!isOwnProfile && (
+          <button 
+            onClick={() => navigate(-1)} 
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 md:hidden"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back</span>
+          </button>
+        )}
+        
         {/* Profile Header */}
         <div className="card-base p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">

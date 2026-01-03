@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FullPageLoader } from "@/components/common/LoadingSpinner";
+import { CallProvider } from "@/components/call/CallProvider";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 import AuthPage from "./pages/AuthPage";
 import FeedPage from "./pages/FeedPage";
@@ -18,6 +20,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import PostPage from "./pages/PostPage";
 import StoryViewerPage from "./pages/StoryViewerPage";
 import SettingsPage from "./pages/SettingsPage";
+import CallsPage from "./pages/CallsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +53,12 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Initialize push notifications
+const PushNotificationInit = () => {
+  usePushNotifications();
+  return null;
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -65,6 +74,7 @@ const AppRoutes = () => {
       <Route path="/post/:postId" element={<ProtectedRoute><PostPage /></ProtectedRoute>} />
       <Route path="/stories/:username" element={<ProtectedRoute><StoryViewerPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/calls" element={<ProtectedRoute><CallsPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -75,11 +85,14 @@ const App = () => (
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <AppRoutes />
-          </TooltipProvider>
+          <CallProvider>
+            <TooltipProvider>
+              <PushNotificationInit />
+              <Toaster />
+              <Sonner />
+              <AppRoutes />
+            </TooltipProvider>
+          </CallProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

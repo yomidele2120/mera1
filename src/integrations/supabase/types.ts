@@ -50,6 +50,63 @@ export type Database = {
           },
         ]
       }
+      call_logs: {
+        Row: {
+          call_type: string
+          caller_id: string
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          receiver_id: string
+          room_name: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          call_type?: string
+          caller_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          receiver_id: string
+          room_name: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          call_type?: string
+          caller_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          receiver_id?: string
+          room_name?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_caller_id_fkey"
+            columns: ["caller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chats: {
         Row: {
           created_at: string
