@@ -443,6 +443,30 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          id: string
+          operation: string
+          request_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          id?: string
+          operation: string
+          request_count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          id?: string
+          operation?: string
+          request_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           created_at: string
@@ -617,6 +641,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          p_max_requests?: number
+          p_operation: string
+          p_window_seconds?: number
+        }
+        Returns: boolean
+      }
       is_blocked: { Args: { user_a: string; user_b: string }; Returns: boolean }
       update_last_active: { Args: never; Returns: undefined }
     }
