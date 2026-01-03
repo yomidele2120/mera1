@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Grid3X3, Settings, MessageCircle, UserPlus, UserCheck, CalendarDays } from "lucide-react";
+import { Grid3X3, Settings, MessageCircle, UserPlus, UserCheck, CalendarDays, MoreVertical, Play, Ban, Flag } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { formatDistanceToNow } from "date-fns";
+import { useBlocking } from "@/hooks/useBlocking";
+import { getOnlineStatusText } from "@/hooks/useOnlineStatus";
+import { OnlineStatusBadge } from "@/components/user/OnlineStatusBadge";
+import { UserNumber } from "@/components/user/UserNumber";
+import { BlockUserButton } from "@/components/user/BlockUserButton";
+import { ReportDialog } from "@/components/user/ReportDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Profile {
   id: string;
@@ -17,12 +30,15 @@ interface Profile {
   bio: string | null;
   avatar_url: string | null;
   created_at: string;
+  last_active_at: string | null;
+  user_number: number | null;
 }
 
 interface Post {
   id: string;
   media_url: string;
   caption: string;
+  post_type: string;
 }
 
 const ProfilePage = () => {
@@ -40,6 +56,9 @@ const ProfilePage = () => {
 
   const isOwnProfile = !username || username === currentUserProfile?.username;
   const displayUsername = username || currentUserProfile?.username;
+  
+  const { isBlocked, blockUser, unblockUser, loading: blockLoading } = useBlocking(profile?.id);
+  const onlineStatus = getOnlineStatusText(profile?.last_active_at || null);
 
   const fetchProfile = async () => {
     if (!displayUsername) return;
@@ -62,11 +81,11 @@ const ProfilePage = () => {
       // Fetch posts
       const { data: postsData } = await supabase
         .from("posts")
-        .select("id, media_url, caption")
+        .select("id, media_url, caption, post_type")
         .eq("user_id", profileData.id)
         .order("created_at", { ascending: false });
 
-      setPosts(postsData || []);
+      setPosts((postsData as Post[]) || []);
 
       // Fetch followers count
       const { count: followers } = await supabase
@@ -208,14 +227,17 @@ const ProfilePage = () => {
         {/* Profile Header */}
         <div className="card-base p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
-            <UserAvatar
-              src={profile.avatar_url}
-              fallback={profile.username}
-              size="xl"
-            />
+            <div className="relative">
+              <UserAvatar
+                src={profile.avatar_url}
+                fallback={profile.username}
+                size="xl"
+              />
+              {!isOwnProfile && <OnlineStatusBadge isOnline={onlineStatus.isOnline} className="h-4 w-4" />}
+            </div>
 
             <div className="flex-1 text-center sm:text-left">
-              <div className="flex flex-col sm:flex-row items-center gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row items-center gap-3 mb-2">
                 <h1 className="font-display text-2xl font-bold text-foreground">
                   {profile.username}
                 </h1>
@@ -250,9 +272,33 @@ const ProfilePage = () => {
                     <Button onClick={startChat} variant="outline" size="sm">
                       <MessageCircle className="h-4 w-4" />
                     </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={isBlocked ? unblockUser : blockUser} disabled={blockLoading}>
+                          <Ban className="h-4 w-4 mr-2" />
+                          {isBlocked ? "Unblock" : "Block"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <ReportDialog reportedUserId={profile.id} trigger={<span className="flex items-center"><Flag className="h-4 w-4 mr-2" />Report</span>} />
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
               </div>
+              
+              {/* Online Status & User ID */}
+              {!isOwnProfile && (
+                <p className={`text-sm mb-2 ${onlineStatus.isOnline ? "text-green-500" : "text-muted-foreground"}`}>
+                  {onlineStatus.text}
+                </p>
+              )}
+              <UserNumber userNumber={profile.user_number} className="mb-2 justify-center sm:justify-start" />
 
               {/* Stats */}
               <div className="flex justify-center sm:justify-start gap-6 mb-4">
@@ -305,13 +351,27 @@ const ProfilePage = () => {
                 transition={{ delay: index * 0.05 }}
               >
                 <Link to={`/post/${post.id}`}>
-                  <div className="aspect-square overflow-hidden rounded-lg bg-muted">
-                    <img
-                      src={post.media_url}
-                      alt={post.caption}
-                      className="h-full w-full object-cover hover:opacity-90 transition-opacity"
-                      loading="lazy"
-                    />
+                  <div className="aspect-square overflow-hidden rounded-lg bg-muted relative">
+                    {post.post_type === "video" || post.media_url?.match(/\.(mp4|mov|webm)$/i) ? (
+                      <>
+                        <video
+                          src={post.media_url}
+                          className="h-full w-full object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Play className="h-8 w-8 text-white" fill="white" />
+                        </div>
+                      </>
+                    ) : (
+                      <img
+                        src={post.media_url}
+                        alt={post.caption}
+                        className="h-full w-full object-cover hover:opacity-90 transition-opacity"
+                        loading="lazy"
+                      />
+                    )}
                   </div>
                 </Link>
               </motion.div>
