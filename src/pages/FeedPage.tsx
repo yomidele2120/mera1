@@ -13,8 +13,10 @@ import { Link } from "react-router-dom";
 interface Post {
   id: string;
   user_id: string;
-  caption: string;
-  media_url: string;
+  caption: string | null;
+  media_url: string | null;
+  text_content: string | null;
+  post_type: string;
   created_at: string;
   profiles: {
     username: string;
@@ -59,7 +61,13 @@ const FeedPage = () => {
       const { data: postsData, error } = await supabase
         .from("posts")
         .select(`
-          *,
+          id,
+          user_id,
+          caption,
+          media_url,
+          text_content,
+          post_type,
+          created_at,
           profiles!posts_user_id_fkey (username, avatar_url),
           likes (user_id),
           comments (id)

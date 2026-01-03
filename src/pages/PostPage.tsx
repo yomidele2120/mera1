@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
 import { CommentSection } from "@/components/post/CommentSection";
-import { Button } from "@/components/ui/button";
+import { PostContent } from "@/components/post/PostContent";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +23,10 @@ import { cn } from "@/lib/utils";
 interface Post {
   id: string;
   user_id: string;
-  caption: string;
-  media_url: string;
+  caption: string | null;
+  media_url: string | null;
+  text_content: string | null;
+  post_type: string;
   created_at: string;
   profiles: {
     username: string;
@@ -59,6 +61,8 @@ const PostPage = () => {
         user_id,
         caption,
         media_url,
+        text_content,
+        post_type,
         created_at,
         profiles (username, avatar_url),
         likes (user_id),
@@ -126,6 +130,8 @@ const PostPage = () => {
 
   if (!post) return null;
 
+  const postType = post.post_type || (post.media_url ? "image" : "text");
+
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto">
@@ -138,16 +144,17 @@ const PostPage = () => {
         </div>
 
         <div className="card-base overflow-hidden md:flex">
-          {/* Image Section */}
-          <div className="md:w-[60%] bg-black flex items-center justify-center">
-            <img
-              src={post.media_url}
-              alt={post.caption}
-              className="max-h-[70vh] w-full object-contain"
+          {/* Content Section */}
+          <div className="md:w-[60%] bg-muted flex items-center justify-center overflow-hidden">
+            <PostContent
+              postType={postType}
+              mediaUrl={post.media_url}
+              textContent={post.text_content}
+              caption={post.caption}
             />
           </div>
 
-          {/* Content Section */}
+          {/* Details Section */}
           <div className="md:w-[40%] flex flex-col h-[70vh] md:h-auto">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
@@ -175,7 +182,7 @@ const PostPage = () => {
             </div>
 
             {/* Caption */}
-            {post.caption && (
+            {post.caption && postType !== "text" && (
               <div className="p-4 border-b border-border">
                 <p className="text-sm text-foreground">
                   <Link

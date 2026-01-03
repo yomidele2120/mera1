@@ -179,6 +179,7 @@ export type Database = {
           id: string
           iv: string | null
           media_url: string | null
+          message_type: string
           seen: boolean
           sender_id: string
           sender_public_key: string | null
@@ -191,6 +192,7 @@ export type Database = {
           id?: string
           iv?: string | null
           media_url?: string | null
+          message_type?: string
           seen?: boolean
           sender_id: string
           sender_public_key?: string | null
@@ -203,6 +205,7 @@ export type Database = {
           id?: string
           iv?: string | null
           media_url?: string | null
+          message_type?: string
           seen?: boolean
           sender_id?: string
           sender_public_key?: string | null
@@ -276,6 +279,8 @@ export type Database = {
           created_at: string
           id: string
           media_url: string
+          post_type: string
+          text_content: string | null
           user_id: string
         }
         Insert: {
@@ -283,6 +288,8 @@ export type Database = {
           created_at?: string
           id?: string
           media_url: string
+          post_type?: string
+          text_content?: string | null
           user_id: string
         }
         Update: {
@@ -290,6 +297,8 @@ export type Database = {
           created_at?: string
           id?: string
           media_url?: string
+          post_type?: string
+          text_content?: string | null
           user_id?: string
         }
         Relationships: [
@@ -306,6 +315,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          chat_background_url: string | null
           created_at: string
           id: string
           public_key: string | null
@@ -315,6 +325,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          chat_background_url?: string | null
           created_at?: string
           id: string
           public_key?: string | null
@@ -324,6 +335,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          chat_background_url?: string | null
           created_at?: string
           id?: string
           public_key?: string | null
@@ -394,6 +406,45 @@ export type Database = {
           {
             foreignKeyName: "story_views_viewer_id_fkey"
             columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      typing_status: {
+        Row: {
+          chat_id: string
+          id: string
+          is_typing: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          id?: string
+          is_typing?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          id?: string
+          is_typing?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "typing_status_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "typing_status_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

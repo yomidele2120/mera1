@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { UserAvatar } from "@/components/common/Avatar";
+import { PostContent } from "@/components/post/PostContent";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +14,10 @@ interface PostCardProps {
   post: {
     id: string;
     user_id: string;
-    caption: string;
-    media_url: string;
+    caption: string | null;
+    media_url: string | null;
+    text_content?: string | null;
+    post_type?: string;
     created_at: string;
     profiles: {
       username: string;
@@ -37,6 +40,8 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
   const [isLikeAnimating, setIsLikeAnimating] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const doubleTapRef = useRef<number>(0);
+
+  const postType = post.post_type || (post.media_url ? "image" : "text");
 
   const handleLike = async () => {
     if (!user) {
@@ -61,7 +66,6 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
         post_id: post.id,
       });
 
-      // Create notification
       if (post.user_id !== user.id) {
         await supabase.from("notifications").insert({
           receiver_id: post.user_id,
@@ -129,25 +133,21 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
         </button>
       </div>
 
-      {/* Image */}
-      <div
-        className="relative aspect-square cursor-pointer bg-muted"
-        onClick={handleDoubleTap}
+      {/* Content */}
+      <PostContent
+        postType={postType}
+        mediaUrl={post.media_url}
+        textContent={post.text_content}
+        caption={post.caption}
+        onDoubleTap={handleDoubleTap}
       >
-        <img
-          src={post.media_url}
-          alt={post.caption}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-
         {/* Double tap heart animation */}
         {isLikeAnimating && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1.2, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center"
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
           >
             <motion.div
               animate={{ scale: [1.2, 1] }}
@@ -157,7 +157,7 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
             </motion.div>
           </motion.div>
         )}
-      </div>
+      </PostContent>
 
       {/* Actions */}
       <div className="p-4">
@@ -205,7 +205,7 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
         </p>
 
         {/* Caption */}
-        {post.caption && (
+        {post.caption && postType !== "text" && (
           <p className="text-sm text-foreground">
             <Link to={`/user/${post.profiles.username}`} className="font-semibold hover:underline">
               {post.profiles.username}

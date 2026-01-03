@@ -9,6 +9,8 @@ interface Profile {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  public_key: string | null;
+  chat_background_url: string | null;
 }
 
 interface AuthContextType {

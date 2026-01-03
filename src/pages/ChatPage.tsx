@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Image, Check, CheckCheck, Lock } from "lucide-react";
+import { ArrowLeft, Send, Image, Video, Check, CheckCheck, Lock, MoreVertical } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,12 @@ import {
   encryptMessage,
   decryptMessage,
 } from "@/lib/encryption";
+import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { MessageContent } from "@/components/chat/MessageContent";
+import { ChatBackground } from "@/components/chat/ChatBackground";
+import { ChatBackgroundPicker } from "@/components/chat/ChatBackgroundPicker";
+import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
+import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
 
 interface Message {
   id: string;
@@ -28,6 +34,7 @@ interface Message {
   created_at: string;
   seen: boolean;
   sender_public_key: string | null;
+  message_type: string;
 }
 
 interface OtherUser {
@@ -43,7 +50,7 @@ interface DecryptedMessage extends Message {
 
 const ChatPage = () => {
   const { chatId } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [messages, setMessages] = useState<DecryptedMessage[]>([]);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [newMessage, setNewMessage] = useState("");
@@ -53,12 +60,27 @@ const ChatPage = () => {
   const [myPublicKeyString, setMyPublicKeyString] = useState<string | null>(null);
   const [sharedKey, setSharedKey] = useState<CryptoKey | null>(null);
   const [encryptionReady, setEncryptionReady] = useState(false);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [chatBackground, setChatBackground] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { handleTyping } = useTypingIndicator(chatId, user?.id);
+  
+  useTypingSubscription(chatId, user?.id, useCallback((isTyping: boolean) => {
+    setIsOtherTyping(isTyping);
+  }, []));
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Load user's chat background
+  useEffect(() => {
+    if (profile?.chat_background_url) {
+      setChatBackground(profile.chat_background_url);
+    }
+  }, [profile]);
 
   // Initialize encryption
   useEffect(() => {
@@ -68,7 +90,6 @@ const ChatPage = () => {
         setPrivateKey(pk);
         setMyPublicKeyString(publicKeyString);
 
-        // Update user's public key in profile if not set
         if (user) {
           await supabase
             .from("profiles")
@@ -219,7 +240,12 @@ const ChatPage = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isOtherTyping]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    handleTyping();
+  };
 
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -230,7 +256,6 @@ const ChatPage = () => {
     setNewMessage("");
 
     try {
-      // If encryption is ready, send encrypted message
       if (sharedKey && myPublicKeyString) {
         const { encrypted, iv } = await encryptMessage(messageText, sharedKey);
         await supabase.from("messages").insert({
@@ -239,13 +264,14 @@ const ChatPage = () => {
           encrypted_text: encrypted,
           iv: iv,
           sender_public_key: myPublicKeyString,
+          message_type: "text",
         });
       } else {
-        // Fallback to unencrypted (shouldn't happen normally)
         await supabase.from("messages").insert({
           chat_id: chatId,
           sender_id: user.id,
           text: messageText,
+          message_type: "text",
         });
       }
     } catch (error) {
@@ -256,13 +282,13 @@ const ChatPage = () => {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user || !chatId) return;
 
     setSending(true);
     try {
-      const fileExt = file.name.split(".").pop();
+      const fileExt = file.name.split(".").pop()?.toLowerCase();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
@@ -275,18 +301,57 @@ const ChatPage = () => {
         .from("media")
         .getPublicUrl(fileName);
 
+      // Determine message type
+      let messageType = "image";
+      if (file.type.startsWith("video/")) {
+        messageType = "video";
+      } else if (file.type.startsWith("audio/")) {
+        messageType = "audio";
+      }
+
       await supabase.from("messages").insert({
         chat_id: chatId,
         sender_id: user.id,
         media_url: urlData.publicUrl,
+        message_type: messageType,
       });
     } catch (error) {
-      console.error("Error uploading image:", error);
+      console.error("Error uploading media:", error);
     } finally {
       setSending(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  const handleVoiceRecording = async (blob: Blob) => {
+    if (!user || !chatId) return;
+
+    setSending(true);
+    try {
+      const fileName = `${user.id}/${Date.now()}.webm`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("media")
+        .upload(fileName, blob);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("media")
+        .getPublicUrl(fileName);
+
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        media_url: urlData.publicUrl,
+        message_type: "audio",
+      });
+    } catch (error) {
+      console.error("Error uploading voice message:", error);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -308,7 +373,7 @@ const ChatPage = () => {
   return (
     <div className="fixed inset-0 flex flex-col bg-background md:relative md:inset-auto md:h-screen md:ml-64 lg:ml-72">
       {/* Header */}
-      <header className="flex items-center gap-3 border-b border-border p-4 bg-card">
+      <header className="flex items-center gap-3 border-b border-border p-4 bg-card z-10">
         <Link to="/messages" className="md:hidden">
           <ArrowLeft className="h-6 w-6 text-foreground" />
         </Link>
@@ -319,95 +384,103 @@ const ChatPage = () => {
               fallback={otherUser.username}
               size="md"
             />
-            <div>
-              <span className="font-semibold text-foreground">{otherUser.username}</span>
-              {encryptionReady && (
-                <div className="flex items-center gap-1 text-xs text-green-500">
-                  <Lock className="h-3 w-3" />
-                  <span>End-to-end encrypted</span>
-                </div>
-              )}
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-foreground block truncate">{otherUser.username}</span>
+              {isOtherTyping ? (
+                <span className="text-xs text-primary">typing...</span>
+              ) : encryptionReady ? (
+                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                  <Lock className="h-2.5 w-2.5" /> encrypted
+                </span>
+              ) : null}
             </div>
           </Link>
         )}
+        <ChatBackgroundPicker
+          currentBackground={chatBackground}
+          onBackgroundChange={setChatBackground}
+        />
       </header>
 
-      {/* Encryption notice */}
+      {/* E2E Notice - Smaller */}
       {encryptionReady && (
-        <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-2 text-center">
-          <p className="text-xs text-green-600 dark:text-green-400 flex items-center justify-center gap-1">
-            <Lock className="h-3 w-3" />
-            Messages are end-to-end encrypted. Only you and {otherUser?.username} can read them.
+        <div className="bg-muted/50 px-3 py-1 text-center border-b border-border">
+          <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+            <Lock className="h-2.5 w-2.5" />
+            End-to-end encrypted
           </p>
         </div>
       )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message, index) => {
-          const isOwn = message.sender_id === user?.id;
-          const showAvatar =
-            !isOwn &&
-            (index === 0 || messages[index - 1].sender_id !== message.sender_id);
-          const messageText = getMessageText(message);
+      {/* Messages with Background */}
+      <ChatBackground backgroundUrl={chatBackground}>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 h-full">
+          {messages.map((message, index) => {
+            const isOwn = message.sender_id === user?.id;
+            const showAvatar =
+              !isOwn &&
+              (index === 0 || messages[index - 1].sender_id !== message.sender_id);
+            const messageText = getMessageText(message);
 
-          return (
-            <motion.div
-              key={message.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn("flex gap-2", isOwn ? "justify-end" : "justify-start")}
-            >
-              {!isOwn && (
-                <div className="w-8">
-                  {showAvatar && otherUser && (
-                    <UserAvatar
-                      src={otherUser.avatar_url}
-                      fallback={otherUser.username}
-                      size="sm"
-                    />
-                  )}
-                </div>
-              )}
-              <div
-                className={cn(
-                  "max-w-[70%] rounded-2xl px-4 py-2",
-                  isOwn
-                    ? "gradient-primary text-primary-foreground rounded-br-md"
-                    : "bg-muted text-foreground rounded-bl-md"
-                )}
+            return (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={cn("flex gap-2", isOwn ? "justify-end" : "justify-start")}
               >
-                {message.media_url && (
-                  <img
-                    src={message.media_url}
-                    alt="Shared image"
-                    className="rounded-lg mb-2 max-w-full"
-                  />
+                {!isOwn && (
+                  <div className="w-8 flex-shrink-0">
+                    {showAvatar && otherUser && (
+                      <UserAvatar
+                        src={otherUser.avatar_url}
+                        fallback={otherUser.username}
+                        size="sm"
+                      />
+                    )}
+                  </div>
                 )}
-                {messageText && <p className="text-sm">{messageText}</p>}
                 <div
                   className={cn(
-                    "flex items-center gap-1 mt-1",
-                    isOwn ? "justify-end" : "justify-start"
+                    "max-w-[70%] rounded-2xl px-4 py-2",
+                    isOwn
+                      ? "gradient-primary text-primary-foreground rounded-br-md"
+                      : "bg-card text-foreground rounded-bl-md border border-border"
                   )}
                 >
-                  <span className={cn("text-xs", isOwn ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                    {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                  </span>
-                  {isOwn && (
-                    message.seen ? (
-                      <CheckCheck className="h-3 w-3 text-primary-foreground/70" />
-                    ) : (
-                      <Check className="h-3 w-3 text-primary-foreground/70" />
-                    )
-                  )}
+                  <MessageContent
+                    messageType={message.message_type || "text"}
+                    mediaUrl={message.media_url}
+                    text={messageText}
+                    isOwn={isOwn}
+                  />
+                  <div
+                    className={cn(
+                      "flex items-center gap-1 mt-1",
+                      isOwn ? "justify-end" : "justify-start"
+                    )}
+                  >
+                    <span className={cn("text-[10px]", isOwn ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                      {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                    </span>
+                    {isOwn && (
+                      message.seen ? (
+                        <CheckCheck className="h-3 w-3 text-primary-foreground/70" />
+                      ) : (
+                        <Check className="h-3 w-3 text-primary-foreground/70" />
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+              </motion.div>
+            );
+          })}
+          
+          {isOtherTyping && <TypingIndicator />}
+          
+          <div ref={messagesEndRef} />
+        </div>
+      </ChatBackground>
 
       {/* Input */}
       <form onSubmit={sendMessage} className="border-t border-border p-4 bg-card safe-bottom">
@@ -419,9 +492,15 @@ const ChatPage = () => {
           >
             <Image className="h-5 w-5 text-muted-foreground" />
           </button>
+          
+          <VoiceRecorder
+            onRecordingComplete={handleVoiceRecording}
+            disabled={sending}
+          />
+          
           <Input
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Message..."
             className="flex-1 input-field"
             disabled={sending}
@@ -438,8 +517,8 @@ const ChatPage = () => {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
+          accept="image/*,video/*,audio/*"
+          onChange={handleMediaUpload}
           className="hidden"
         />
       </form>
