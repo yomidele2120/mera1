@@ -18,7 +18,7 @@ import {
   decryptMessage,
 } from "@/lib/encryption";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import { MessageContent } from "@/components/chat/MessageContent";
+import { PrivateMediaContent } from "@/components/chat/PrivateMediaContent";
 import { ChatBackground } from "@/components/chat/ChatBackground";
 import { ChatBackgroundPicker } from "@/components/chat/ChatBackgroundPicker";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
@@ -325,17 +325,18 @@ const ChatPage = () => {
     setSending(true);
     try {
       const fileExt = file.name.split(".").pop()?.toLowerCase();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      // Store in private-media bucket with user_id/chat_id/filename structure for RLS
+      const fileName = `${user.id}/${chatId}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("media")
+        .from("private-media")
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from("media")
-        .getPublicUrl(fileName);
+      // Get the Supabase URL for reference (actual access via signed URL)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const mediaUrl = `${supabaseUrl}/storage/v1/object/private-media/${fileName}`;
 
       // Determine message type
       let messageType = "image";
@@ -348,7 +349,7 @@ const ChatPage = () => {
       await supabase.from("messages").insert({
         chat_id: chatId,
         sender_id: user.id,
-        media_url: urlData.publicUrl,
+        media_url: mediaUrl,
         message_type: messageType,
       });
     } catch (error) {
@@ -366,22 +367,23 @@ const ChatPage = () => {
 
     setSending(true);
     try {
-      const fileName = `${user.id}/${Date.now()}.webm`;
+      // Store in private-media bucket with user_id/chat_id/filename structure for RLS
+      const fileName = `${user.id}/${chatId}/${Date.now()}.webm`;
 
       const { error: uploadError } = await supabase.storage
-        .from("media")
+        .from("private-media")
         .upload(fileName, blob);
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from("media")
-        .getPublicUrl(fileName);
+      // Get the Supabase URL for reference (actual access via signed URL)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const mediaUrl = `${supabaseUrl}/storage/v1/object/private-media/${fileName}`;
 
       await supabase.from("messages").insert({
         chat_id: chatId,
         sender_id: user.id,
-        media_url: urlData.publicUrl,
+        media_url: mediaUrl,
         message_type: "audio",
       });
     } catch (error) {
@@ -518,11 +520,12 @@ const ChatPage = () => {
                       : "bg-card text-foreground rounded-bl-md border border-border"
                   )}
                 >
-                  <MessageContent
+                  <PrivateMediaContent
                     messageType={message.message_type || "text"}
                     mediaUrl={message.media_url}
                     text={messageText}
                     isOwn={isOwn}
+                    chatId={chatId!}
                   />
                   <div
                     className={cn(
