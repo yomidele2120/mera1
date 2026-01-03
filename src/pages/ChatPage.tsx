@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Image, Check, CheckCheck } from "lucide-react";
+import { ArrowLeft, Send, Image, Check, CheckCheck, Lock } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,30 +10,49 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  initializeEncryption,
+  importPublicKey,
+  deriveSharedKey,
+  encryptMessage,
+  decryptMessage,
+} from "@/lib/encryption";
 
 interface Message {
   id: string;
   text: string | null;
+  encrypted_text: string | null;
+  iv: string | null;
   media_url: string | null;
   sender_id: string;
   created_at: string;
   seen: boolean;
+  sender_public_key: string | null;
 }
 
 interface OtherUser {
   id: string;
   username: string;
   avatar_url: string | null;
+  public_key: string | null;
+}
+
+interface DecryptedMessage extends Message {
+  decryptedText?: string;
 }
 
 const ChatPage = () => {
   const { chatId } = useParams();
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<DecryptedMessage[]>([]);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [privateKey, setPrivateKey] = useState<CryptoKey | null>(null);
+  const [myPublicKeyString, setMyPublicKeyString] = useState<string | null>(null);
+  const [sharedKey, setSharedKey] = useState<CryptoKey | null>(null);
+  const [encryptionReady, setEncryptionReady] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,18 +60,86 @@ const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Initialize encryption
+  useEffect(() => {
+    const initEncryption = async () => {
+      try {
+        const { privateKey: pk, publicKeyString } = await initializeEncryption();
+        setPrivateKey(pk);
+        setMyPublicKeyString(publicKeyString);
+
+        // Update user's public key in profile if not set
+        if (user) {
+          await supabase
+            .from("profiles")
+            .update({ public_key: publicKeyString })
+            .eq("id", user.id);
+        }
+      } catch (error) {
+        console.error("Error initializing encryption:", error);
+      }
+    };
+
+    if (user) {
+      initEncryption();
+    }
+  }, [user]);
+
+  // Derive shared key when other user's public key is available
+  useEffect(() => {
+    const deriveKey = async () => {
+      if (privateKey && otherUser?.public_key) {
+        try {
+          const otherPublicKey = await importPublicKey(otherUser.public_key);
+          const shared = await deriveSharedKey(privateKey, otherPublicKey);
+          setSharedKey(shared);
+          setEncryptionReady(true);
+        } catch (error) {
+          console.error("Error deriving shared key:", error);
+        }
+      }
+    };
+
+    deriveKey();
+  }, [privateKey, otherUser?.public_key]);
+
+  // Decrypt messages when shared key is ready
+  useEffect(() => {
+    const decryptMessages = async () => {
+      if (!sharedKey) return;
+
+      const decrypted = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.encrypted_text && msg.iv && !msg.decryptedText) {
+            try {
+              const text = await decryptMessage(msg.encrypted_text, msg.iv, sharedKey);
+              return { ...msg, decryptedText: text };
+            } catch (error) {
+              console.error("Error decrypting message:", error);
+              return { ...msg, decryptedText: "[Unable to decrypt]" };
+            }
+          }
+          return msg;
+        })
+      );
+
+      setMessages(decrypted);
+    };
+
+    decryptMessages();
+  }, [sharedKey, messages.length]);
+
   const fetchChat = async () => {
     if (!chatId || !user) return;
 
     try {
-      // Fetch chat details
       const { data: chatData, error } = await supabase
         .from("chats")
         .select(`
           user1_id,
           user2_id,
-          user1:profiles!chats_user1_id_fkey (id, username, avatar_url),
-          user2:profiles!chats_user2_id_fkey (id, username, avatar_url)
+          user1:profiles!chats_user1_id_fkey (id, username, avatar_url, public_key),
+          user2:profiles!chats_user2_id_fkey (id, username, avatar_url, public_key)
         `)
         .eq("id", chatId)
         .single();
@@ -62,16 +149,14 @@ const ChatPage = () => {
       const other = chatData.user1_id === user.id ? chatData.user2 : chatData.user1;
       setOtherUser(other);
 
-      // Fetch messages
       const { data: messagesData } = await supabase
         .from("messages")
         .select("*")
         .eq("chat_id", chatId)
         .order("created_at", { ascending: true });
 
-      setMessages(messagesData || []);
+      setMessages((messagesData as DecryptedMessage[]) || []);
 
-      // Mark messages as seen
       await supabase
         .from("messages")
         .update({ seen: true })
@@ -88,7 +173,6 @@ const ChatPage = () => {
   useEffect(() => {
     fetchChat();
 
-    // Subscribe to new messages
     const channel = supabase
       .channel(`chat-${chatId}`)
       .on(
@@ -100,10 +184,9 @@ const ChatPage = () => {
           filter: `chat_id=eq.${chatId}`,
         },
         (payload) => {
-          const newMsg = payload.new as Message;
+          const newMsg = payload.new as DecryptedMessage;
           setMessages((prev) => [...prev, newMsg]);
 
-          // Mark as seen if not sender
           if (newMsg.sender_id !== user?.id) {
             supabase
               .from("messages")
@@ -121,9 +204,9 @@ const ChatPage = () => {
           filter: `chat_id=eq.${chatId}`,
         },
         (payload) => {
-          const updatedMsg = payload.new as Message;
+          const updatedMsg = payload.new as DecryptedMessage;
           setMessages((prev) =>
-            prev.map((msg) => (msg.id === updatedMsg.id ? updatedMsg : msg))
+            prev.map((msg) => (msg.id === updatedMsg.id ? { ...msg, ...updatedMsg } : msg))
           );
         }
       )
@@ -147,11 +230,24 @@ const ChatPage = () => {
     setNewMessage("");
 
     try {
-      await supabase.from("messages").insert({
-        chat_id: chatId,
-        sender_id: user.id,
-        text: messageText,
-      });
+      // If encryption is ready, send encrypted message
+      if (sharedKey && myPublicKeyString) {
+        const { encrypted, iv } = await encryptMessage(messageText, sharedKey);
+        await supabase.from("messages").insert({
+          chat_id: chatId,
+          sender_id: user.id,
+          encrypted_text: encrypted,
+          iv: iv,
+          sender_public_key: myPublicKeyString,
+        });
+      } else {
+        // Fallback to unencrypted (shouldn't happen normally)
+        await supabase.from("messages").insert({
+          chat_id: chatId,
+          sender_id: user.id,
+          text: messageText,
+        });
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       setNewMessage(messageText);
@@ -194,6 +290,13 @@ const ChatPage = () => {
     }
   };
 
+  const getMessageText = (message: DecryptedMessage): string | null => {
+    if (message.decryptedText) return message.decryptedText;
+    if (message.text) return message.text;
+    if (message.encrypted_text) return "🔒 Encrypted message";
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
@@ -210,16 +313,34 @@ const ChatPage = () => {
           <ArrowLeft className="h-6 w-6 text-foreground" />
         </Link>
         {otherUser && (
-          <Link to={`/user/${otherUser.username}`} className="flex items-center gap-3">
+          <Link to={`/user/${otherUser.username}`} className="flex items-center gap-3 flex-1">
             <UserAvatar
               src={otherUser.avatar_url}
               fallback={otherUser.username}
               size="md"
             />
-            <span className="font-semibold text-foreground">{otherUser.username}</span>
+            <div>
+              <span className="font-semibold text-foreground">{otherUser.username}</span>
+              {encryptionReady && (
+                <div className="flex items-center gap-1 text-xs text-green-500">
+                  <Lock className="h-3 w-3" />
+                  <span>End-to-end encrypted</span>
+                </div>
+              )}
+            </div>
           </Link>
         )}
       </header>
+
+      {/* Encryption notice */}
+      {encryptionReady && (
+        <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-2 text-center">
+          <p className="text-xs text-green-600 dark:text-green-400 flex items-center justify-center gap-1">
+            <Lock className="h-3 w-3" />
+            Messages are end-to-end encrypted. Only you and {otherUser?.username} can read them.
+          </p>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -228,6 +349,7 @@ const ChatPage = () => {
           const showAvatar =
             !isOwn &&
             (index === 0 || messages[index - 1].sender_id !== message.sender_id);
+          const messageText = getMessageText(message);
 
           return (
             <motion.div
@@ -262,7 +384,7 @@ const ChatPage = () => {
                     className="rounded-lg mb-2 max-w-full"
                   />
                 )}
-                {message.text && <p className="text-sm">{message.text}</p>}
+                {messageText && <p className="text-sm">{messageText}</p>}
                 <div
                   className={cn(
                     "flex items-center gap-1 mt-1",

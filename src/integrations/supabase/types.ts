@@ -54,6 +54,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          parent_id: string | null
           post_id: string
           text: string
           user_id: string
@@ -61,6 +62,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          parent_id?: string | null
           post_id: string
           text: string
           user_id: string
@@ -68,11 +70,19 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          parent_id?: string | null
           post_id?: string
           text?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "comments_post_id_fkey"
             columns: ["post_id"]
@@ -165,28 +175,37 @@ export type Database = {
         Row: {
           chat_id: string
           created_at: string
+          encrypted_text: string | null
           id: string
+          iv: string | null
           media_url: string | null
           seen: boolean
           sender_id: string
+          sender_public_key: string | null
           text: string | null
         }
         Insert: {
           chat_id: string
           created_at?: string
+          encrypted_text?: string | null
           id?: string
+          iv?: string | null
           media_url?: string | null
           seen?: boolean
           sender_id: string
+          sender_public_key?: string | null
           text?: string | null
         }
         Update: {
           chat_id?: string
           created_at?: string
+          encrypted_text?: string | null
           id?: string
+          iv?: string | null
           media_url?: string | null
           seen?: boolean
           sender_id?: string
+          sender_public_key?: string | null
           text?: string | null
         }
         Relationships: [
@@ -289,6 +308,7 @@ export type Database = {
           bio: string | null
           created_at: string
           id: string
+          public_key: string | null
           updated_at: string
           username: string
         }
@@ -297,6 +317,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           id: string
+          public_key?: string | null
           updated_at?: string
           username: string
         }
@@ -305,6 +326,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           id?: string
+          public_key?: string | null
           updated_at?: string
           username?: string
         }

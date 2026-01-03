@@ -24,9 +24,10 @@ interface PostCardProps {
     comments: { id: string }[];
   };
   onLikeToggle?: () => void;
+  onCommentClick?: () => void;
 }
 
-export const PostCard = ({ post, onLikeToggle }: PostCardProps) => {
+export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(
@@ -91,6 +92,13 @@ export const PostCard = ({ post, onLikeToggle }: PostCardProps) => {
       }
     }
     doubleTapRef.current = now;
+  };
+
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onCommentClick) {
+      onCommentClick();
+    }
   };
 
   return (
@@ -169,9 +177,9 @@ export const PostCard = ({ post, onLikeToggle }: PostCardProps) => {
                 )}
               />
             </motion.button>
-            <Link to={`/post/${post.id}`}>
+            <button onClick={handleCommentClick}>
               <MessageCircle className="h-6 w-6 text-foreground hover:text-muted-foreground transition-colors" />
-            </Link>
+            </button>
             <button>
               <Share2 className="h-6 w-6 text-foreground hover:text-muted-foreground transition-colors" />
             </button>
@@ -208,12 +216,12 @@ export const PostCard = ({ post, onLikeToggle }: PostCardProps) => {
 
         {/* Comments preview */}
         {post.comments?.length > 0 && (
-          <Link
-            to={`/post/${post.id}`}
+          <button
+            onClick={handleCommentClick}
             className="mt-2 block text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             View all {post.comments.length} comments
-          </Link>
+          </button>
         )}
       </div>
     </motion.article>
