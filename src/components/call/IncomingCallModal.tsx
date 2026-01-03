@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, PhoneOff, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/common/Avatar";
 import { UserNumber } from "@/components/user/UserNumber";
+import { useRingtone } from "@/hooks/useRingtone";
 import type { CallLog } from "@/hooks/useCalling";
 
 interface IncomingCallModalProps {
@@ -12,6 +14,31 @@ interface IncomingCallModalProps {
 }
 
 export const IncomingCallModal = ({ call, onAccept, onReject }: IncomingCallModalProps) => {
+  const { playRingtone, stopRingtone } = useRingtone();
+
+  // Play ringtone when call comes in
+  useEffect(() => {
+    if (call) {
+      playRingtone();
+    } else {
+      stopRingtone();
+    }
+
+    return () => {
+      stopRingtone();
+    };
+  }, [call, playRingtone, stopRingtone]);
+
+  const handleAccept = (callId: string) => {
+    stopRingtone();
+    onAccept(callId);
+  };
+
+  const handleReject = (callId: string) => {
+    stopRingtone();
+    onReject(callId);
+  };
+
   if (!call) return null;
 
   const caller = call.caller;
@@ -75,14 +102,14 @@ export const IncomingCallModal = ({ call, onAccept, onReject }: IncomingCallModa
               variant="destructive"
               size="lg"
               className="h-16 w-16 rounded-full"
-              onClick={() => onReject(call.id)}
+              onClick={() => handleReject(call.id)}
             >
               <PhoneOff className="h-6 w-6" />
             </Button>
             <Button
               size="lg"
               className="h-16 w-16 rounded-full bg-green-500 hover:bg-green-600"
-              onClick={() => onAccept(call.id)}
+              onClick={() => handleAccept(call.id)}
             >
               <Phone className="h-6 w-6" />
             </Button>
