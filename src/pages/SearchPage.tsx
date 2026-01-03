@@ -13,6 +13,7 @@ interface SearchUser {
   username: string;
   avatar_url: string | null;
   bio: string | null;
+  user_number: number | null;
 }
 
 const SearchPage = () => {
@@ -29,14 +30,31 @@ const SearchPage = () => {
 
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, username, avatar_url, bio")
-          .ilike("username", `%${query}%`)
-          .limit(20);
+        // Check if query is a number (user ID search)
+        const isNumericQuery = /^\d+$/.test(query.replace(/-/g, ""));
+        
+        let data;
+        let error;
+        
+        if (isNumericQuery) {
+          // Search by user number
+          const numericQuery = parseInt(query.replace(/-/g, ""), 10);
+          ({ data, error } = await supabase
+            .from("profiles")
+            .select("id, username, avatar_url, bio, user_number")
+            .eq("user_number", numericQuery)
+            .limit(20));
+        } else {
+          // Search by username
+          ({ data, error } = await supabase
+            .from("profiles")
+            .select("id, username, avatar_url, bio, user_number")
+            .ilike("username", `%${query}%`)
+            .limit(20));
+        }
 
         if (error) throw error;
-        setResults(data || []);
+        setResults((data as SearchUser[]) || []);
       } catch (error) {
         console.error("Search error:", error);
       } finally {
@@ -58,7 +76,7 @@ const SearchPage = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search users..."
+            placeholder="Search by username or ID number..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-12 pr-10 input-field"
@@ -82,7 +100,7 @@ const SearchPage = () => {
           <div className="card-base p-8 text-center">
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">
-              Search for people by their username
+              Search by username or user ID number
             </p>
           </div>
         ) : results.length === 0 ? (
@@ -111,6 +129,11 @@ const SearchPage = () => {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground">{user.username}</p>
+                    {user.user_number && (
+                      <p className="text-xs text-muted-foreground font-mono">
+                        ID: {user.user_number.toString().replace(/(\d{3})(\d{3})(\d{3})/, "$1-$2-$3")}
+                      </p>
+                    )}
                     {user.bio && (
                       <p className="text-sm text-muted-foreground truncate">
                         {user.bio}

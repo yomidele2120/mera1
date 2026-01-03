@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Image, Video, Check, CheckCheck, Lock, MoreVertical } from "lucide-react";
+import { ArrowLeft, Send, Image, Check, CheckCheck, Lock, MoreVertical, Ban } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,18 @@ import { ChatBackground } from "@/components/chat/ChatBackground";
 import { ChatBackgroundPicker } from "@/components/chat/ChatBackgroundPicker";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
+import { useBlocking } from "@/hooks/useBlocking";
+import { useOnlineStatus, getOnlineStatusText } from "@/hooks/useOnlineStatus";
+import { OnlineStatusBadge } from "@/components/user/OnlineStatusBadge";
+import { BlockUserButton } from "@/components/user/BlockUserButton";
+import { ReportDialog } from "@/components/user/ReportDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Message {
   id: string;
@@ -42,6 +54,7 @@ interface OtherUser {
   username: string;
   avatar_url: string | null;
   public_key: string | null;
+  last_active_at: string | null;
 }
 
 interface DecryptedMessage extends Message {
@@ -66,6 +79,13 @@ const ChatPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { handleTyping } = useTypingIndicator(chatId, user?.id);
+  const { isBlocked, isBlockedByOther, isAnyBlocked, blockUser, unblockUser, loading: blockLoading } = useBlocking(otherUser?.id);
+  
+  // Update user activity
+  useOnlineStatus(user?.id);
+  
+  // Get online status for other user
+  const onlineStatus = getOnlineStatusText(otherUser?.last_active_at || null);
   
   useTypingSubscription(chatId, user?.id, useCallback((isTyping: boolean) => {
     setIsOtherTyping(isTyping);
@@ -159,8 +179,8 @@ const ChatPage = () => {
         .select(`
           user1_id,
           user2_id,
-          user1:profiles!chats_user1_id_fkey (id, username, avatar_url, public_key),
-          user2:profiles!chats_user2_id_fkey (id, username, avatar_url, public_key)
+          user1:profiles!chats_user1_id_fkey (id, username, avatar_url, public_key, last_active_at),
+          user2:profiles!chats_user2_id_fkey (id, username, avatar_url, public_key, last_active_at)
         `)
         .eq("id", chatId)
         .single();
@@ -168,7 +188,7 @@ const ChatPage = () => {
       if (error) throw error;
 
       const other = chatData.user1_id === user.id ? chatData.user2 : chatData.user1;
-      setOtherUser(other);
+      setOtherUser(other as OtherUser);
 
       const { data: messagesData } = await supabase
         .from("messages")
@@ -379,27 +399,56 @@ const ChatPage = () => {
         </Link>
         {otherUser && (
           <Link to={`/user/${otherUser.username}`} className="flex items-center gap-3 flex-1">
-            <UserAvatar
-              src={otherUser.avatar_url}
-              fallback={otherUser.username}
-              size="md"
-            />
+            <div className="relative">
+              <UserAvatar
+                src={otherUser.avatar_url}
+                fallback={otherUser.username}
+                size="md"
+              />
+              <OnlineStatusBadge isOnline={onlineStatus.isOnline} />
+            </div>
             <div className="flex-1 min-w-0">
               <span className="font-semibold text-foreground block truncate">{otherUser.username}</span>
               {isOtherTyping ? (
                 <span className="text-xs text-primary">typing...</span>
-              ) : encryptionReady ? (
-                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                  <Lock className="h-2.5 w-2.5" /> encrypted
+              ) : (
+                <span className={cn(
+                  "text-[10px]",
+                  onlineStatus.isOnline ? "text-green-500" : "text-muted-foreground"
+                )}>
+                  {onlineStatus.text}
                 </span>
-              ) : null}
+              )}
             </div>
           </Link>
         )}
-        <ChatBackgroundPicker
-          currentBackground={chatBackground}
-          onBackgroundChange={setChatBackground}
-        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <ChatBackgroundPicker
+                currentBackground={chatBackground}
+                onBackgroundChange={setChatBackground}
+              />
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {otherUser && (
+              <>
+                <DropdownMenuItem onClick={isBlocked ? unblockUser : blockUser} disabled={blockLoading}>
+                  <Ban className="h-4 w-4 mr-2" />
+                  {isBlocked ? "Unblock" : "Block"}
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <ReportDialog reportedUserId={otherUser.id} trigger={<span className="flex items-center">Report</span>} />
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       {/* E2E Notice - Smaller */}
@@ -482,46 +531,59 @@ const ChatPage = () => {
         </div>
       </ChatBackground>
 
-      {/* Input */}
-      <form onSubmit={sendMessage} className="border-t border-border p-4 bg-card safe-bottom">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 rounded-full hover:bg-muted transition-colors"
-          >
-            <Image className="h-5 w-5 text-muted-foreground" />
-          </button>
-          
-          <VoiceRecorder
-            onRecordingComplete={handleVoiceRecording}
-            disabled={sending}
-          />
-          
-          <Input
-            value={newMessage}
-            onChange={handleInputChange}
-            placeholder="Message..."
-            className="flex-1 input-field"
-            disabled={sending}
-          />
-          <Button
-            type="submit"
-            disabled={!newMessage.trim() || sending}
-            size="icon"
-            className="btn-primary h-10 w-10 rounded-full"
-          >
-            <Send className="h-5 w-5" />
-          </Button>
+      {/* Input - Blocked state */}
+      {isAnyBlocked ? (
+        <div className="border-t border-border p-4 bg-card safe-bottom text-center">
+          <p className="text-sm text-muted-foreground">
+            {isBlocked ? "You have blocked this user." : "You can't send messages to this user."}
+          </p>
+          {isBlocked && (
+            <Button variant="link" onClick={unblockUser} disabled={blockLoading}>
+              Unblock to send messages
+            </Button>
+          )}
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*,audio/*"
-          onChange={handleMediaUpload}
-          className="hidden"
-        />
-      </form>
+      ) : (
+        <form onSubmit={sendMessage} className="border-t border-border p-4 bg-card safe-bottom">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 rounded-full hover:bg-muted transition-colors"
+            >
+              <Image className="h-5 w-5 text-muted-foreground" />
+            </button>
+            
+            <VoiceRecorder
+              onRecordingComplete={handleVoiceRecording}
+              disabled={sending}
+            />
+            
+            <Input
+              value={newMessage}
+              onChange={handleInputChange}
+              placeholder="Message..."
+              className="flex-1 input-field"
+              disabled={sending}
+            />
+            <Button
+              type="submit"
+              disabled={!newMessage.trim() || sending}
+              size="icon"
+              className="btn-primary h-10 w-10 rounded-full"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,audio/*"
+            onChange={handleMediaUpload}
+            className="hidden"
+          />
+        </form>
+      )}
     </div>
   );
 };

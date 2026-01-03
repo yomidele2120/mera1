@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { formatDistanceToNow } from "date-fns";
+import { OnlineStatusBadge } from "@/components/user/OnlineStatusBadge";
+import { getOnlineStatusText } from "@/hooks/useOnlineStatus";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,7 @@ interface ChatPreview {
     id: string;
     username: string;
     avatar_url: string | null;
+    last_active_at: string | null;
   };
   lastMessage?: {
     text: string | null;
@@ -52,8 +55,8 @@ const MessagesPage = () => {
           id,
           user1_id,
           user2_id,
-          user1:profiles!chats_user1_id_fkey (id, username, avatar_url),
-          user2:profiles!chats_user2_id_fkey (id, username, avatar_url)
+          user1:profiles!chats_user1_id_fkey (id, username, avatar_url, last_active_at),
+          user2:profiles!chats_user2_id_fkey (id, username, avatar_url, last_active_at)
         `)
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
@@ -242,11 +245,14 @@ const MessagesPage = () => {
                   to={`/messages/${chat.id}`}
                   className="card-base p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors"
                 >
-                  <UserAvatar
-                    src={chat.otherUser.avatar_url}
-                    fallback={chat.otherUser.username}
-                    size="lg"
-                  />
+                  <div className="relative">
+                    <UserAvatar
+                      src={chat.otherUser.avatar_url}
+                      fallback={chat.otherUser.username}
+                      size="lg"
+                    />
+                    <OnlineStatusBadge isOnline={getOnlineStatusText(chat.otherUser.last_active_at).isOnline} />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-foreground">{chat.otherUser.username}</p>
@@ -261,7 +267,7 @@ const MessagesPage = () => {
                     {chat.lastMessage && (
                       <p className="text-sm text-muted-foreground truncate">
                         {chat.lastMessage.sender_id === user?.id && "You: "}
-                        {chat.lastMessage.text || "Sent an image"}
+                        {chat.lastMessage.text || "Sent media"}
                       </p>
                     )}
                   </div>

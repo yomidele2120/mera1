@@ -10,14 +10,14 @@ import {
   Info,
   LogOut,
   Trash2,
-  ChevronRight,
+  Hash,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { SettingsSection, SettingsItem } from "@/components/settings/SettingsSection";
 import { EditProfileForm } from "@/components/settings/EditProfileForm";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+import { UserNumber } from "@/components/user/UserNumber";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -180,6 +180,12 @@ const SettingsPage = () => {
                 label="Edit profile"
                 description={`@${profile?.username}`}
                 onClick={() => setCurrentView("edit-profile")}
+              />
+              <SettingsItem
+                icon={<Hash className="h-5 w-5" />}
+                label="Your User ID"
+                description="Use this to let others find you"
+                action={<UserNumber userNumber={profile?.user_number ?? null} />}
               />
             </SettingsSection>
 

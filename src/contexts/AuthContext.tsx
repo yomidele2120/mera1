@@ -11,6 +11,8 @@ interface Profile {
   updated_at: string;
   public_key: string | null;
   chat_background_url: string | null;
+  last_active_at: string | null;
+  user_number: number | null;
 }
 
 interface AuthContextType {
