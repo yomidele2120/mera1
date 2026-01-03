@@ -1,4 +1,4 @@
-import { Home, Search, PlusSquare, MessageCircle, User, Bell, Moon, Sun, LogOut } from "lucide-react";
+import { Home, Search, PlusSquare, MessageCircle, User, Bell, Moon, Sun, LogOut, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -84,6 +84,23 @@ export const DesktopNav = () => {
 
       {/* Bottom Actions */}
       <div className="space-y-1 border-t border-border pt-4">
+        <Link
+          to="/settings"
+          className={cn(
+            "nav-item group relative",
+            location.pathname === "/settings" && "nav-item-active"
+          )}
+        >
+          {location.pathname === "/settings" && (
+            <motion.div
+              layoutId="desktop-nav-indicator"
+              className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full gradient-primary"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <Settings className="h-5 w-5" />
+          <span className="font-medium">Settings</span>
+        </Link>
         <button
           onClick={toggleTheme}
           className="nav-item w-full"
