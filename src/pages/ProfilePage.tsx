@@ -235,10 +235,10 @@ const ProfilePage = () => {
               <span>Back</span>
             </button>
           ) : (
-            <div /> 
+            <div />
           )}
           {isOwnProfile && (
-            <Link to="/settings" className="p-2 rounded-full hover:bg-muted transition-colors">
+            <Link to="/settings" className="p-2 rounded-full hover:bg-muted transition-colors ml-auto">
               <Settings className="h-5 w-5 text-muted-foreground" />
             </Link>
           )}
