@@ -1,19 +1,13 @@
 import { Bell, Users, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { useNotificationBadges } from "@/hooks/useNotificationBadges";
 
 export const MobileTopHeader = () => {
   const location = useLocation();
   const { unreadMessages, pendingFriendRequests, unreadNotifications } = useNotificationBadges();
 
-  // Don't show on certain pages
-  const hiddenPaths = ["/auth", "/messages/"];
-  const shouldHide = hiddenPaths.some(path => 
-    location.pathname === path || location.pathname.startsWith("/messages/")
-  );
-
-  if (shouldHide) return null;
+  // Only show on the news feed (home page)
+  if (location.pathname !== "/" && location.pathname !== "/feed") return null;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50 safe-top md:hidden">
@@ -22,12 +16,7 @@ export const MobileTopHeader = () => {
         <div className="flex items-center gap-4">
           <Link
             to="/notifications"
-            className={cn(
-              "relative p-2 rounded-full transition-colors",
-              location.pathname === "/notifications" 
-                ? "bg-primary/10 text-primary" 
-                : "text-muted-foreground hover:bg-muted"
-            )}
+            className="relative p-2 rounded-full transition-colors text-muted-foreground hover:bg-muted"
           >
             <Bell className="h-5 w-5" />
             {unreadNotifications > 0 && (
@@ -38,12 +27,7 @@ export const MobileTopHeader = () => {
           </Link>
           <Link
             to="/friends"
-            className={cn(
-              "relative p-2 rounded-full transition-colors",
-              location.pathname === "/friends" 
-                ? "bg-primary/10 text-primary" 
-                : "text-muted-foreground hover:bg-muted"
-            )}
+            className="relative p-2 rounded-full transition-colors text-muted-foreground hover:bg-muted"
           >
             <Users className="h-5 w-5" />
             {pendingFriendRequests > 0 && (
@@ -63,12 +47,7 @@ export const MobileTopHeader = () => {
         <div className="flex items-center gap-4">
           <Link
             to="/messages"
-            className={cn(
-              "relative p-2 rounded-full transition-colors",
-              location.pathname === "/messages" 
-                ? "bg-primary/10 text-primary" 
-                : "text-muted-foreground hover:bg-muted"
-            )}
+            className="relative p-2 rounded-full transition-colors text-muted-foreground hover:bg-muted"
           >
             <MessageCircle className="h-5 w-5" />
             {unreadMessages > 0 && (
