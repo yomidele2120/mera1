@@ -14,7 +14,11 @@ export const UserNumber = ({ userNumber, className, showCopyButton = true }: Use
 
   if (!userNumber) return null;
 
-  const formattedNumber = userNumber.toString().replace(/(\d{3})(\d{3})(\d{3})/, "$1-$2-$3");
+  // Format as XXX-XXX-XXXX for 10-digit numbers starting with 90
+  const numStr = userNumber.toString();
+  const formattedNumber = numStr.length === 10 
+    ? numStr.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3")
+    : numStr.replace(/(\d{3})(\d{3})(\d{3,})/, "$1-$2-$3");
 
   const handleCopy = () => {
     navigator.clipboard.writeText(userNumber.toString());

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Phone, 
@@ -8,11 +8,14 @@ import {
   Video, 
   VideoOff,
   Volume2,
-  VolumeX
+  VolumeX,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/common/Avatar";
 import { UserNumber } from "@/components/user/UserNumber";
+import { useAgora } from "@/hooks/useAgora";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import type { CallLog } from "@/hooks/useCalling";
 
 interface ActiveCallScreenProps {
@@ -28,90 +31,78 @@ export const ActiveCallScreen = ({
   duration, 
   onEnd 
 }: ActiveCallScreenProps) => {
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(call.call_type === 'video');
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
-  const jitsiContainerRef = useRef<HTMLDivElement>(null);
-  const jitsiApiRef = useRef<any>(null);
+  const [hasJoined, setHasJoined] = useState(false);
 
   const otherUser = call.caller_id === currentUserId ? call.receiver : call.caller;
   const isVideoCall = call.call_type === 'video';
 
-  // Initialize Jitsi
+  const {
+    joinChannel,
+    leaveChannel,
+    toggleMute,
+    toggleVideo,
+    isMuted,
+    isVideoEnabled,
+    isJoined,
+    isConnecting,
+    error,
+    localVideoRef,
+    remoteVideoRef,
+    remoteUser,
+  } = useAgora({
+    channelName: call.room_name,
+    isVideoCall,
+    onUserLeft: () => {
+      console.log('Remote user left, ending call');
+      handleEndCall();
+    },
+  });
+
+  // Join channel on mount
   useEffect(() => {
-    const loadJitsi = async () => {
-      // Load Jitsi external API script
-      const script = document.createElement('script');
-      script.src = 'https://meet.jit.si/external_api.js';
-      script.async = true;
-      script.onload = () => {
-        if (jitsiContainerRef.current && (window as any).JitsiMeetExternalAPI) {
-          const domain = 'meet.jit.si';
-          const options = {
-            roomName: call.room_name,
-            parentNode: jitsiContainerRef.current,
-            width: '100%',
-            height: '100%',
-            configOverwrite: {
-              startWithAudioMuted: false,
-              startWithVideoMuted: !isVideoCall,
-              prejoinPageEnabled: false,
-              disableDeepLinking: true,
-              enableClosePage: false,
-              hideConferenceSubject: true,
-              hideConferenceTimer: true,
-              disableInviteFunctions: true,
-            },
-            interfaceConfigOverwrite: {
-              TOOLBAR_BUTTONS: [],
-              SHOW_JITSI_WATERMARK: false,
-              SHOW_WATERMARK_FOR_GUESTS: false,
-              SHOW_BRAND_WATERMARK: false,
-              SHOW_POWERED_BY: false,
-              SHOW_PROMOTIONAL_CLOSE_PAGE: false,
-              filmStripOnly: false,
-              DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-            },
-            userInfo: {
-              displayName: otherUser?.username || 'User',
-            }
-          };
-
-          jitsiApiRef.current = new (window as any).JitsiMeetExternalAPI(domain, options);
-
-          jitsiApiRef.current.addListener('readyToClose', () => {
-            onEnd();
-          });
-        }
-      };
-      document.body.appendChild(script);
-
-      return () => {
-        if (jitsiApiRef.current) {
-          jitsiApiRef.current.dispose();
-        }
-        document.body.removeChild(script);
-      };
-    };
-
-    loadJitsi();
-  }, [call.room_name, isVideoCall, otherUser?.username, onEnd]);
-
-  // Handle mute toggle
-  const toggleMute = () => {
-    if (jitsiApiRef.current) {
-      jitsiApiRef.current.executeCommand('toggleAudio');
+    if (!hasJoined) {
+      setHasJoined(true);
+      joinChannel();
     }
-    setIsMuted(!isMuted);
+  }, [hasJoined, joinChannel]);
+
+  const handleEndCall = async () => {
+    await leaveChannel();
+    onEnd();
   };
 
-  // Handle video toggle
-  const toggleVideo = () => {
-    if (jitsiApiRef.current) {
-      jitsiApiRef.current.executeCommand('toggleVideo');
-    }
-    setIsVideoOn(!isVideoOn);
-  };
+  if (error) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background"
+      >
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">Call Error</h3>
+        <p className="text-muted-foreground text-center px-4 mb-6">{error}</p>
+        <Button variant="outline" onClick={onEnd}>
+          Close
+        </Button>
+      </motion.div>
+    );
+  }
+
+  if (isConnecting) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background"
+      >
+        <LoadingSpinner size="lg" />
+        <p className="text-muted-foreground mt-4">Connecting to call...</p>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -138,12 +129,45 @@ export const ActiveCallScreen = ({
         <div className="text-lg font-mono text-foreground">{duration}</div>
       </div>
 
-      {/* Jitsi Container or Audio Call Display */}
-      <div className="flex-1 relative">
+      {/* Video/Audio Display */}
+      <div className="flex-1 relative bg-muted">
         {isVideoCall ? (
-          <div ref={jitsiContainerRef} className="w-full h-full" />
+          <>
+            {/* Remote Video (full screen) */}
+            <div 
+              ref={remoteVideoRef} 
+              className="absolute inset-0 bg-background"
+            />
+            
+            {/* Local Video (picture-in-picture) */}
+            <div 
+              ref={localVideoRef} 
+              className="absolute top-4 right-4 w-32 h-44 rounded-xl overflow-hidden bg-card shadow-lg border border-border"
+            />
+
+            {/* No remote user placeholder */}
+            {!remoteUser && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <UserAvatar
+                      src={otherUser?.avatar_url}
+                      fallback={otherUser?.username || 'U'}
+                      size="xl"
+                      className="h-32 w-32 mx-auto border-4 border-primary"
+                    />
+                  </motion.div>
+                  <p className="text-muted-foreground mt-4">Waiting for {otherUser?.username}...</p>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          // Audio call display
+          <div className="flex-1 flex items-center justify-center h-full">
             <div className="text-center space-y-4">
               <motion.div
                 animate={{ scale: [1, 1.05, 1] }}
@@ -158,10 +182,10 @@ export const ActiveCallScreen = ({
               </motion.div>
               <div>
                 <h2 className="text-2xl font-bold text-foreground">{otherUser?.username}</h2>
-                <p className="text-muted-foreground">Voice Call</p>
+                <p className="text-muted-foreground">
+                  {remoteUser ? 'Voice Call' : `Waiting for ${otherUser?.username}...`}
+                </p>
               </div>
-              {/* Hidden Jitsi for audio */}
-              <div ref={jitsiContainerRef} className="w-0 h-0 overflow-hidden" />
             </div>
           </div>
         )}
@@ -181,12 +205,12 @@ export const ActiveCallScreen = ({
 
           {isVideoCall && (
             <Button
-              variant={!isVideoOn ? "secondary" : "outline"}
+              variant={!isVideoEnabled ? "secondary" : "outline"}
               size="lg"
               className="h-14 w-14 rounded-full"
               onClick={toggleVideo}
             >
-              {isVideoOn ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+              {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
             </Button>
           )}
 
@@ -194,7 +218,7 @@ export const ActiveCallScreen = ({
             variant="destructive"
             size="lg"
             className="h-16 w-16 rounded-full"
-            onClick={onEnd}
+            onClick={handleEndCall}
           >
             <PhoneOff className="h-6 w-6" />
           </Button>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, Search, Plus } from "lucide-react";
+import { MessageCircle, Search, Plus, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
@@ -35,6 +35,35 @@ interface ChatPreview {
     sender_id: string;
   };
 }
+
+// AI Chat Contact Component
+const AIContactCard = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+  >
+    <Link
+      to="/messages/ai"
+      className="card-base p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors border-l-4 border-l-primary"
+    >
+      <div className="relative">
+        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+          <Sparkles className="h-6 w-6 text-primary-foreground" />
+        </div>
+        <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-foreground">MERA AI</p>
+          <span className="text-xs text-primary font-medium">AI Assistant</span>
+        </div>
+        <p className="text-sm text-muted-foreground truncate">
+          Ask me anything! I'm here to help 😊
+        </p>
+      </div>
+    </Link>
+  </motion.div>
+);
 
 const MessagesPage = () => {
   const { user } = useAuth();
@@ -224,8 +253,11 @@ const MessagesPage = () => {
           </Dialog>
         </div>
 
+        {/* MERA AI Contact - Always First */}
+        <AIContactCard />
+
         {chats.length === 0 ? (
-          <div className="card-base p-8 text-center">
+          <div className="card-base p-8 text-center mt-4">
             <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground mb-4">No messages yet</p>
             <Button onClick={() => setNewChatOpen(true)} className="btn-primary">
