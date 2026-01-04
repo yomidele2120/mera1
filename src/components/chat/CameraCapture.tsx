@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, X, SwitchCamera, Video, Circle, Square, Check } from "lucide-react";
+import { Camera, X, SwitchCamera, Video, Circle, Square, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CameraCaptureProps {
@@ -15,6 +15,8 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
   const [recordingTime, setRecordingTime] = useState(0);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [capturedMedia, setCapturedMedia] = useState<{ blob: Blob; type: "photo" | "video"; url: string } | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -25,6 +27,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
 
   const startCamera = useCallback(async () => {
     try {
+      setPermissionError(null);
       const constraints = {
         video: { facingMode },
         audio: mode === "video",
@@ -36,8 +39,20 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-    } catch (error) {
+      setHasPermission(true);
+    } catch (error: any) {
       console.error("Error accessing camera:", error);
+      setHasPermission(false);
+      
+      if (error.name === "NotAllowedError") {
+        setPermissionError("Camera access denied. Please allow camera access in your browser settings.");
+      } else if (error.name === "NotFoundError") {
+        setPermissionError("No camera found. Please connect a camera and try again.");
+      } else if (error.name === "NotReadableError") {
+        setPermissionError("Camera is in use by another application.");
+      } else {
+        setPermissionError("Failed to access camera. Please check your device settings.");
+      }
     }
   }, [facingMode, mode]);
 
@@ -50,6 +65,19 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
       clearInterval(timerRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      startCamera();
+    }
+    return () => stopCamera();
+  }, [open, startCamera, stopCamera]);
+
+  useEffect(() => {
+    if (hasPermission && open && !capturedMedia) {
+      startCamera();
+    }
+  }, [facingMode]);
 
   const switchCamera = async () => {
     stopCamera();
@@ -146,14 +174,6 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Start camera when opened
-  useState(() => {
-    if (open) {
-      startCamera();
-    }
-    return () => stopCamera();
-  });
-
   if (!open) return null;
 
   return (
@@ -174,7 +194,7 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
           </button>
 
           {/* Camera switch button */}
-          {!capturedMedia && (
+          {hasPermission && !capturedMedia && (
             <button
               onClick={switchCamera}
               className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50"
@@ -192,8 +212,16 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
           )}
 
           {/* Video preview / captured media */}
-          <div className="flex-1 relative">
-            {capturedMedia ? (
+          <div className="flex-1 relative flex items-center justify-center">
+            {hasPermission === false ? (
+              <div className="text-center p-6 space-y-4">
+                <AlertCircle className="h-16 w-16 text-destructive mx-auto" />
+                <p className="text-white text-lg">{permissionError}</p>
+                <Button onClick={startCamera} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            ) : capturedMedia ? (
               capturedMedia.type === "photo" ? (
                 <img
                   src={capturedMedia.url}
@@ -216,72 +244,73 @@ export const CameraCapture = ({ open, onClose, onCapture }: CameraCaptureProps) 
                 playsInline
                 muted
                 className="w-full h-full object-cover"
-                onLoadedMetadata={() => startCamera()}
               />
             )}
           </div>
 
           {/* Controls */}
-          <div className="p-6 bg-black/50">
-            {capturedMedia ? (
-              <div className="flex items-center justify-center gap-8">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={retake}
-                  className="rounded-full"
-                >
-                  Retake
-                </Button>
-                <Button
-                  size="lg"
-                  onClick={confirmCapture}
-                  className="rounded-full"
-                >
-                  <Check className="h-5 w-5 mr-2" />
-                  Send
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-8">
-                {/* Mode toggle */}
-                <button
-                  onClick={() => setMode("photo")}
-                  className={`p-2 rounded-full ${mode === "photo" ? "text-white" : "text-white/50"}`}
-                >
-                  <Camera className="h-6 w-6" />
-                </button>
-
-                {/* Capture button */}
-                {mode === "photo" ? (
-                  <button
-                    onClick={takePhoto}
-                    className="h-16 w-16 rounded-full border-4 border-white flex items-center justify-center"
+          {hasPermission && (
+            <div className="p-6 bg-black/50">
+              {capturedMedia ? (
+                <div className="flex items-center justify-center gap-8">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={retake}
+                    className="rounded-full"
                   >
-                    <div className="h-12 w-12 rounded-full bg-white" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={isRecording ? stopRecording : startRecording}
-                    className="h-16 w-16 rounded-full border-4 border-white flex items-center justify-center"
+                    Retake
+                  </Button>
+                  <Button
+                    size="lg"
+                    onClick={confirmCapture}
+                    className="rounded-full"
                   >
-                    {isRecording ? (
-                      <Square className="h-8 w-8 text-red-500 fill-red-500" />
-                    ) : (
-                      <Circle className="h-12 w-12 text-red-500 fill-red-500" />
-                    )}
+                    <Check className="h-5 w-5 mr-2" />
+                    Send
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-8">
+                  {/* Mode toggle */}
+                  <button
+                    onClick={() => setMode("photo")}
+                    className={`p-2 rounded-full ${mode === "photo" ? "text-white" : "text-white/50"}`}
+                  >
+                    <Camera className="h-6 w-6" />
                   </button>
-                )}
 
-                <button
-                  onClick={() => setMode("video")}
-                  className={`p-2 rounded-full ${mode === "video" ? "text-white" : "text-white/50"}`}
-                >
-                  <Video className="h-6 w-6" />
-                </button>
-              </div>
-            )}
-          </div>
+                  {/* Capture button */}
+                  {mode === "photo" ? (
+                    <button
+                      onClick={takePhoto}
+                      className="h-16 w-16 rounded-full border-4 border-white flex items-center justify-center"
+                    >
+                      <div className="h-12 w-12 rounded-full bg-white" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className="h-16 w-16 rounded-full border-4 border-white flex items-center justify-center"
+                    >
+                      {isRecording ? (
+                        <Square className="h-8 w-8 text-red-500 fill-red-500" />
+                      ) : (
+                        <Circle className="h-12 w-12 text-red-500 fill-red-500" />
+                      )}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setMode("video")}
+                    className={`p-2 rounded-full ${mode === "video" ? "text-white" : "text-white/50"}`}
+                  >
+                    <Video className="h-6 w-6" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Hidden canvas for photo capture */}
           <canvas ref={canvasRef} className="hidden" />

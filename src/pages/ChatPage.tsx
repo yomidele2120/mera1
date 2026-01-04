@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Send, Image, Lock, MoreVertical, Ban, Phone, Video, Camera, Smile, Reply } from "lucide-react";
+import { ArrowLeft, Send, Image, Lock, MoreVertical, Ban, Phone, Video, Camera, Smile, Reply, VideoIcon } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ import { MessageSelectionBar } from "@/components/chat/MessageSelectionBar";
 import { ForwardMessageDialog } from "@/components/chat/ForwardMessageDialog";
 import { GifStickerPicker } from "@/components/chat/GifStickerPicker";
 import { CameraCapture } from "@/components/chat/CameraCapture";
+import { VideoRecorder } from "@/components/chat/VideoRecorder";
+import { MediaFilePicker } from "@/components/chat/MediaFilePicker";
 import { ReplyPreview, QuotedMessage } from "@/components/chat/ReplyPreview";
 import { ReadReceipt } from "@/components/chat/ReadReceipt";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
@@ -98,6 +100,7 @@ const ChatPage = () => {
   // New feature states
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [videoRecorderOpen, setVideoRecorderOpen] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<{
     id: string;
     text: string | null;
@@ -510,6 +513,79 @@ const ChatPage = () => {
     }
   };
 
+  const handleFilePickerSelect = async (file: File, type: "image" | "video" | "audio") => {
+    if (!user || !chatId) return;
+
+    setSending(true);
+    try {
+      const fileExt = file.name.split(".").pop()?.toLowerCase();
+      const fileName = `${user.id}/${chatId}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("private-media")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const mediaUrl = `${supabaseUrl}/storage/v1/object/private-media/${fileName}`;
+
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        media_url: mediaUrl,
+        message_type: type,
+        reply_to_id: replyToMessage?.id || null,
+      });
+      setReplyToMessage(null);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVideoRecording = async (blob: Blob) => {
+    if (!user || !chatId) return;
+
+    setSending(true);
+    try {
+      const fileName = `${user.id}/${chatId}/${Date.now()}.webm`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("private-media")
+        .upload(fileName, blob);
+
+      if (uploadError) throw uploadError;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const mediaUrl = `${supabaseUrl}/storage/v1/object/private-media/${fileName}`;
+
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        media_url: mediaUrl,
+        message_type: "video",
+        reply_to_id: replyToMessage?.id || null,
+      });
+      setReplyToMessage(null);
+    } catch (error) {
+      console.error("Error uploading video recording:", error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload video. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const getMessageText = (message: DecryptedMessage): string | null => {
     if (message.decryptedText) return message.decryptedText;
     if (message.text) return message.text;
@@ -860,11 +936,16 @@ const ChatPage = () => {
             
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setVideoRecorderOpen(true)}
               className="p-2 rounded-full hover:bg-muted transition-colors"
             >
-              <Image className="h-5 w-5 text-muted-foreground" />
+              <VideoIcon className="h-5 w-5 text-muted-foreground" />
             </button>
+            
+            <MediaFilePicker
+              onFileSelect={handleFilePickerSelect}
+              disabled={sending}
+            />
             
             <button
               type="button"
@@ -910,6 +991,13 @@ const ChatPage = () => {
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
         onCapture={handleCameraCapture}
+      />
+
+      {/* Video Recorder */}
+      <VideoRecorder
+        open={videoRecorderOpen}
+        onClose={() => setVideoRecorderOpen(false)}
+        onRecordingComplete={handleVideoRecording}
       />
 
       {/* Forward Dialog */}

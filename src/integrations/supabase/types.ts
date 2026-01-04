@@ -430,6 +430,39 @@ export type Database = {
           },
         ]
       }
+      password_reset_codes: {
+        Row: {
+          attempts: number
+          code: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       posts: {
         Row: {
           caption: string | null
@@ -714,6 +747,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_password_reset_rate_limit: {
+        Args: { p_email: string }
+        Returns: boolean
+      }
       check_rate_limit: {
         Args: {
           p_max_requests?: number
@@ -724,6 +761,10 @@ export type Database = {
       }
       is_blocked: { Args: { user_a: string; user_b: string }; Returns: boolean }
       update_last_active: { Args: never; Returns: undefined }
+      verify_password_reset_code: {
+        Args: { p_code: string; p_email: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
