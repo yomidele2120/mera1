@@ -13,6 +13,18 @@ interface Profile {
   chat_background_url: string | null;
   last_active_at: string | null;
   user_number: number | null;
+  full_name: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+}
+
+interface SignUpData {
+  email: string;
+  password: string;
+  username: string;
+  fullName: string;
+  dateOfBirth: string;
+  gender: string;
 }
 
 interface AuthContextType {
@@ -20,7 +32,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, username: string) => Promise<{ error: Error | null }>;
+  signUp: (data: SignUpData) => Promise<{ error: Error | null; userNumber?: number | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -99,7 +111,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const signUp = async (data: SignUpData) => {
+    const { email, password, username, fullName, dateOfBirth, gender } = data;
+    
     // Check if username is already taken
     const { data: existingUser } = await supabase
       .from("profiles")
@@ -113,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const redirectUrl = `${window.location.origin}/`;
     
-    const { data, error } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -125,16 +139,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error };
     }
 
-    // Create profile
-    if (data.user) {
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: data.user.id,
-        username: username.toLowerCase(),
-      });
+    // Create profile with all fields
+    if (authData.user) {
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          id: authData.user.id,
+          username: username.toLowerCase(),
+          full_name: fullName,
+          date_of_birth: dateOfBirth,
+          gender: gender,
+        })
+        .select("user_number")
+        .single();
 
       if (profileError) {
         return { error: profileError };
       }
+
+      return { error: null, userNumber: profileData?.user_number };
     }
 
     return { error: null };

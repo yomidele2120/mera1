@@ -474,6 +474,9 @@ export type Database = {
           bio: string | null
           chat_background_url: string | null
           created_at: string
+          date_of_birth: string | null
+          full_name: string | null
+          gender: string | null
           id: string
           last_active_at: string | null
           public_key: string | null
@@ -486,6 +489,9 @@ export type Database = {
           bio?: string | null
           chat_background_url?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
           id: string
           last_active_at?: string | null
           public_key?: string | null
@@ -498,6 +504,9 @@ export type Database = {
           bio?: string | null
           chat_background_url?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
           id?: string
           last_active_at?: string | null
           public_key?: string | null
