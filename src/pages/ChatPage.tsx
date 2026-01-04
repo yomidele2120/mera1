@@ -22,6 +22,8 @@ import { PrivateMediaContent } from "@/components/chat/PrivateMediaContent";
 import { ChatBackground } from "@/components/chat/ChatBackground";
 import { ChatBackgroundPicker } from "@/components/chat/ChatBackgroundPicker";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
+import { MessageOptionsMenu } from "@/components/chat/MessageOptionsMenu";
+import { DeleteChatButton } from "@/components/chat/DeleteChatButton";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
 import { useBlocking } from "@/hooks/useBlocking";
 import { useOnlineStatus, getOnlineStatusText } from "@/hooks/useOnlineStatus";
@@ -227,6 +229,10 @@ const ChatPage = () => {
     }
   };
 
+  const handleMessageDeleted = (messageId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+  };
+
   useEffect(() => {
     fetchChat();
 
@@ -265,6 +271,19 @@ const ChatPage = () => {
           setMessages((prev) =>
             prev.map((msg) => (msg.id === updatedMsg.id ? { ...msg, ...updatedMsg } : msg))
           );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `chat_id=eq.${chatId}`,
+        },
+        (payload) => {
+          const deletedMsg = payload.old as { id: string };
+          setMessages((prev) => prev.filter((msg) => msg.id !== deletedMsg.id));
         }
       )
       .subscribe();
@@ -461,18 +480,20 @@ const ChatPage = () => {
             <DropdownMenuSeparator />
             {otherUser && (
               <>
-                <DropdownMenuItem onClick={isBlocked ? unblockUser : blockUser} disabled={blockLoading}>
-                  <Ban className="h-4 w-4 mr-2" />
-                  {isBlocked ? "Unblock" : "Block"}
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <ReportDialog reportedUserId={otherUser.id} trigger={<span className="flex items-center">Report</span>} />
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
+            <DropdownMenuItem onClick={isBlocked ? unblockUser : blockUser} disabled={blockLoading}>
+              <Ban className="h-4 w-4 mr-2" />
+              {isBlocked ? "Unblock" : "Block"}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <ReportDialog reportedUserId={otherUser.id} trigger={<span className="flex items-center">Report</span>} />
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DeleteChatButton chatId={chatId!} />
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </header>
 
       {/* E2E Notice - Smaller */}
       {encryptionReady && (
@@ -499,7 +520,7 @@ const ChatPage = () => {
                 key={message.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={cn("flex gap-2", isOwn ? "justify-end" : "justify-start")}
+                className={cn("flex gap-2 group", isOwn ? "justify-end" : "justify-start")}
               >
                 {!isOwn && (
                   <div className="w-8 flex-shrink-0">
@@ -512,6 +533,19 @@ const ChatPage = () => {
                     )}
                   </div>
                 )}
+                
+                {/* Message options for own messages - left side */}
+                {isOwn && (
+                  <div className="flex items-center">
+                    <MessageOptionsMenu
+                      messageId={message.id}
+                      senderId={message.sender_id}
+                      messageText={messageText}
+                      onDeleted={() => handleMessageDeleted(message.id)}
+                    />
+                  </div>
+                )}
+                
                 <div
                   className={cn(
                     "max-w-[70%] rounded-2xl px-4 py-2",
@@ -545,6 +579,17 @@ const ChatPage = () => {
                     )}
                   </div>
                 </div>
+                
+                {/* Message options for other's messages - right side */}
+                {!isOwn && (
+                  <div className="flex items-center">
+                    <MessageOptionsMenu
+                      messageId={message.id}
+                      senderId={message.sender_id}
+                      messageText={messageText}
+                    />
+                  </div>
+                )}
               </motion.div>
             );
           })}
