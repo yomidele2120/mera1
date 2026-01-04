@@ -84,6 +84,36 @@ export const PrivateMediaContent = ({
     return <p className="text-sm whitespace-pre-wrap">{text}</p>;
   }
 
+  // GIF message (external URL, no signing needed)
+  if (messageType === "gif" && mediaUrl) {
+    return (
+      <div className="space-y-2">
+        <img
+          src={mediaUrl}
+          alt="GIF"
+          className="rounded-lg max-w-full object-contain max-h-48"
+          loading="lazy"
+        />
+        {text && <p className="text-sm whitespace-pre-wrap">{text}</p>}
+      </div>
+    );
+  }
+
+  // Sticker message
+  if (messageType === "sticker" && mediaUrl) {
+    return (
+      <div className="space-y-2">
+        <img
+          src={mediaUrl}
+          alt="Sticker"
+          className="max-w-24 max-h-24 object-contain"
+          loading="lazy"
+        />
+        {text && <p className="text-sm whitespace-pre-wrap">{text}</p>}
+      </div>
+    );
+  }
+
   // Image message
   if (messageType === "image" && displayUrl) {
     return (

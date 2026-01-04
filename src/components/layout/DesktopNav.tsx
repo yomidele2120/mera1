@@ -5,21 +5,32 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNotificationBadges } from "@/hooks/useNotificationBadges";
 
 const navItems = [
-  { icon: Home, path: "/", label: "Home" },
-  { icon: Search, path: "/search", label: "Search" },
-  { icon: PlusSquare, path: "/create", label: "Create" },
-  { icon: MessageCircle, path: "/messages", label: "Messages" },
-  { icon: Users, path: "/friends", label: "Friends" },
-  { icon: Phone, path: "/calls", label: "Calls" },
-  { icon: Bell, path: "/notifications", label: "Notifications" },
+  { icon: Home, path: "/", label: "Home", badgeKey: null },
+  { icon: Search, path: "/search", label: "Search", badgeKey: null },
+  { icon: PlusSquare, path: "/create", label: "Create", badgeKey: null },
+  { icon: MessageCircle, path: "/messages", label: "Messages", badgeKey: "unreadMessages" as const },
+  { icon: Users, path: "/friends", label: "Friends", badgeKey: "pendingFriendRequests" as const },
+  { icon: Phone, path: "/calls", label: "Calls", badgeKey: "missedCalls" as const },
+  { icon: Bell, path: "/notifications", label: "Notifications", badgeKey: "unreadNotifications" as const },
 ];
 
 export const DesktopNav = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { profile, signOut } = useAuth();
+  const { unreadMessages, pendingFriendRequests, missedCalls, unreadNotifications } = useNotificationBadges();
+
+  const getBadgeCount = (key: string | null) => {
+    if (!key) return 0;
+    if (key === "unreadMessages") return unreadMessages;
+    if (key === "pendingFriendRequests") return pendingFriendRequests;
+    if (key === "missedCalls") return missedCalls;
+    if (key === "unreadNotifications") return unreadNotifications;
+    return 0;
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col border-r border-border bg-sidebar p-4 md:flex lg:w-72">
@@ -36,6 +47,7 @@ export const DesktopNav = () => {
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
+          const badgeCount = getBadgeCount(item.badgeKey);
 
           return (
             <Link
@@ -53,7 +65,14 @@ export const DesktopNav = () => {
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+              <div className="relative">
+                <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                {badgeCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
+                    {badgeCount > 9 ? "9+" : badgeCount}
+                  </span>
+                )}
+              </div>
               <span className="font-medium">{item.label}</span>
             </Link>
           );

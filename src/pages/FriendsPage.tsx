@@ -28,6 +28,7 @@ import { DialPad } from "@/components/friends/DialPad";
 import { EditContactDialog } from "@/components/friends/EditContactDialog";
 import { FriendRequestCard } from "@/components/friends/FriendRequestCard";
 import { ContactImportDialog } from "@/components/friends/ContactImportDialog";
+import { FriendSuggestions } from "@/components/friends/FriendSuggestions";
 
 interface Friend {
   id: string;
@@ -436,7 +437,9 @@ const FriendsPage = () => {
             <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="friends" className="space-y-2 mt-4">
+          <TabsContent value="friends" className="space-y-4 mt-4">
+            <FriendSuggestions />
+            
             <AnimatePresence>
               {filteredFriends.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
