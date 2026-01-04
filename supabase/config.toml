@@ -4,7 +4,7 @@ project_id = "rvmeuepkxmfosddxuoth"
 verify_jwt = true
 
 [functions.ai-chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.agora-credentials]
 verify_jwt = true
