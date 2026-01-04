@@ -109,15 +109,18 @@ export const useAgora = ({
   }, [onUserJoined, onUserLeft, onConnectionStateChange]);
 
   // Get Agora credentials from edge function
-  const getAgoraCredentials = async (): Promise<{ appId: string; token?: string } | null> => {
+  const getAgoraCredentials = async (channel: string): Promise<{ appId: string; token?: string; uid?: number; mode?: string } | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke('agora-credentials');
+      const { data, error } = await supabase.functions.invoke('agora-credentials', {
+        body: { channelName: channel, uid: null }
+      });
       
       if (error) {
         console.error('Error fetching Agora credentials:', error);
         return null;
       }
       
+      console.log('Agora credentials received, mode:', data?.mode);
       return data;
     } catch (err) {
       console.error('Failed to get Agora credentials:', err);
@@ -136,14 +139,16 @@ export const useAgora = ({
     setError(null);
 
     try {
-      // Get Agora credentials from backend
-      const credentials = await getAgoraCredentials();
+      // Get Agora credentials from backend with channel name
+      const credentials = await getAgoraCredentials(channelName);
       
       if (!credentials?.appId) {
         setError('Agora is not configured. Please contact support.');
         setIsConnecting(false);
         return false;
       }
+
+      console.log('Joining channel with mode:', credentials.mode);
 
       // Request microphone permission
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -160,12 +165,12 @@ export const useAgora = ({
         }
       }
 
-      // Join the channel
+      // Join the channel with token and UID from server
       await clientRef.current.join(
         credentials.appId, 
         channelName, 
         credentials.token || null, 
-        null
+        credentials.uid || null
       );
 
       // Create local tracks
