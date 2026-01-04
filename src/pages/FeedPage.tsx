@@ -4,6 +4,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { PostCard } from "@/components/post/PostCard";
 import { PostDetailModal } from "@/components/post/PostDetailModal";
 import { StoriesBar } from "@/components/story/StoriesBar";
+import { AISearchBar } from "@/components/search/AISearchBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -136,6 +137,11 @@ const FeedPage = () => {
         {/* Mobile Header */}
         <div className="flex items-center justify-between mb-4 md:hidden">
           <h1 className="font-display text-2xl font-bold text-gradient">mera</h1>
+        </div>
+
+        {/* AI Search Bar - Fixed at top */}
+        <div className="sticky top-0 z-20 bg-background pb-4">
+          <AISearchBar />
         </div>
 
         {/* Stories */}
