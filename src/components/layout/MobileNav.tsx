@@ -1,36 +1,30 @@
-import { Home, Search, PlusSquare, User } from "lucide-react";
+import { Home, Search, PlusSquare, Users, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { icon: Home, path: "/", label: "Home" },
   { icon: Search, path: "/search", label: "Search" },
   { icon: PlusSquare, path: "/create", label: "Create" },
-  { icon: User, path: "/profile", label: "Profile" },
+  { icon: Users, path: "/friends", label: "Friends" },
+  { icon: Settings, path: "/settings", label: "Settings" },
 ];
 
 export const MobileNav = () => {
   const location = useLocation();
-  const { profile } = useAuth();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/50 safe-bottom md:hidden">
       <div className="flex items-center justify-around py-2">
         {navItems.map((item) => {
-          const path = item.path === "/profile" && profile?.username 
-            ? `/profile/${profile.username}` 
-            : item.path;
-          const isActive = item.path === "/profile" 
-            ? location.pathname.startsWith("/profile") 
-            : location.pathname === item.path;
+          const isActive = location.pathname === item.path;
           const Icon = item.icon;
 
           return (
             <Link
               key={item.path}
-              to={path}
+              to={item.path}
               className={cn(
                 "relative flex flex-col items-center gap-0.5 px-4 py-2 transition-all duration-200",
                 isActive ? "text-primary" : "text-muted-foreground"
