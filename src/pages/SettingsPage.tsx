@@ -16,7 +16,7 @@ import {
 import { MainLayout } from "@/components/layout/MainLayout";
 import { SettingsSection, SettingsItem } from "@/components/settings/SettingsSection";
 import { EditProfileForm } from "@/components/settings/EditProfileForm";
-import { ChangePasswordForm } from "@/components/settings/ChangePasswordForm";
+import { SecurePasswordReset } from "@/components/settings/SecurePasswordReset";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { Switch } from "@/components/ui/switch";
 import { UserNumber } from "@/components/user/UserNumber";
@@ -75,9 +75,7 @@ const SettingsPage = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <SettingsSection title="Change Password" description="Update your account password">
-              <ChangePasswordForm />
-            </SettingsSection>
+            <SecurePasswordReset onBack={() => setCurrentView("main")} />
           </motion.div>
         );
 
