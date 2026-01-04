@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Send, Image, Check, CheckCheck, Lock, MoreVertical, Ban, Phone, Video, Camera, Smile, Reply } from "lucide-react";
+import { ArrowLeft, Send, Image, Lock, MoreVertical, Ban, Phone, Video, Camera, Smile, Reply } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { ForwardMessageDialog } from "@/components/chat/ForwardMessageDialog";
 import { GifStickerPicker } from "@/components/chat/GifStickerPicker";
 import { CameraCapture } from "@/components/chat/CameraCapture";
 import { ReplyPreview, QuotedMessage } from "@/components/chat/ReplyPreview";
+import { ReadReceipt } from "@/components/chat/ReadReceipt";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
 import { useBlocking } from "@/hooks/useBlocking";
 import { useOnlineStatus, getOnlineStatusText } from "@/hooks/useOnlineStatus";
@@ -774,7 +775,7 @@ const ChatPage = () => {
                   />
                   <div
                     className={cn(
-                      "flex items-center gap-1 mt-1",
+                      "flex items-center gap-1.5 mt-1",
                       isOwn ? "justify-end" : "justify-start"
                     )}
                   >
@@ -782,11 +783,11 @@ const ChatPage = () => {
                       {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                     </span>
                     {isOwn && (
-                      message.seen ? (
-                        <CheckCheck className="h-3 w-3 text-primary-foreground/70" />
-                      ) : (
-                        <Check className="h-3 w-3 text-primary-foreground/70" />
-                      )
+                      <ReadReceipt
+                        seen={message.seen}
+                        createdAt={message.created_at}
+                        isOwn={true}
+                      />
                     )}
                   </div>
                 </div>
