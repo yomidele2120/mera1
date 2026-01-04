@@ -192,6 +192,33 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          contact_user_id: string
+          created_at: string
+          custom_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_user_id: string
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_user_id?: string
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       followers: {
         Row: {
           created_at: string

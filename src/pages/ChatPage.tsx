@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Send, Image, Check, CheckCheck, Lock, MoreVertical, Ban, Phone, Video } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -24,6 +25,8 @@ import { ChatBackgroundPicker } from "@/components/chat/ChatBackgroundPicker";
 import { VoiceRecorder } from "@/components/chat/VoiceRecorder";
 import { MessageOptionsMenu } from "@/components/chat/MessageOptionsMenu";
 import { DeleteChatButton } from "@/components/chat/DeleteChatButton";
+import { MessageSelectionBar } from "@/components/chat/MessageSelectionBar";
+import { ForwardMessageDialog } from "@/components/chat/ForwardMessageDialog";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
 import { useBlocking } from "@/hooks/useBlocking";
 import { useOnlineStatus, getOnlineStatusText } from "@/hooks/useOnlineStatus";
@@ -39,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CallButton } from "@/components/call/CallButton";
 import { useCallContext } from "@/components/call/CallProvider";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -68,6 +72,7 @@ interface DecryptedMessage extends Message {
 const ChatPage = () => {
   const { chatId } = useParams();
   const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<DecryptedMessage[]>([]);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [newMessage, setNewMessage] = useState("");
@@ -79,6 +84,12 @@ const ChatPage = () => {
   const [encryptionReady, setEncryptionReady] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [chatBackground, setChatBackground] = useState<string | null>(null);
+  
+  // Selection mode state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -344,7 +355,6 @@ const ChatPage = () => {
     setSending(true);
     try {
       const fileExt = file.name.split(".").pop()?.toLowerCase();
-      // Store in private-media bucket with user_id/chat_id/filename structure for RLS
       const fileName = `${user.id}/${chatId}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
@@ -353,11 +363,9 @@ const ChatPage = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get the Supabase URL for reference (actual access via signed URL)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const mediaUrl = `${supabaseUrl}/storage/v1/object/private-media/${fileName}`;
 
-      // Determine message type
       let messageType = "image";
       if (file.type.startsWith("video/")) {
         messageType = "video";
@@ -386,7 +394,6 @@ const ChatPage = () => {
 
     setSending(true);
     try {
-      // Store in private-media bucket with user_id/chat_id/filename structure for RLS
       const fileName = `${user.id}/${chatId}/${Date.now()}.webm`;
 
       const { error: uploadError } = await supabase.storage
@@ -395,7 +402,6 @@ const ChatPage = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get the Supabase URL for reference (actual access via signed URL)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const mediaUrl = `${supabaseUrl}/storage/v1/object/private-media/${fileName}`;
 
@@ -419,6 +425,74 @@ const ChatPage = () => {
     return null;
   };
 
+  // Selection mode handlers
+  const toggleMessageSelection = (messageId: string) => {
+    setSelectedMessages((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleLongPress = (messageId: string) => {
+    if (!selectionMode) {
+      setSelectionMode(true);
+      setSelectedMessages(new Set([messageId]));
+    }
+  };
+
+  const cancelSelection = () => {
+    setSelectionMode(false);
+    setSelectedMessages(new Set());
+  };
+
+  const handleCopySelected = () => {
+    const selectedMsgs = messages.filter((m) => selectedMessages.has(m.id));
+    const textContent = selectedMsgs
+      .map((m) => getMessageText(m))
+      .filter(Boolean)
+      .join("\n");
+    
+    navigator.clipboard.writeText(textContent);
+    toast({ title: "Copied to clipboard" });
+    cancelSelection();
+  };
+
+  const handleForwardSelected = () => {
+    setForwardDialogOpen(true);
+  };
+
+  const handleDeleteSelected = async () => {
+    const ownMessages = messages.filter(
+      (m) => selectedMessages.has(m.id) && m.sender_id === user?.id
+    );
+
+    for (const msg of ownMessages) {
+      await supabase.from("messages").delete().eq("id", msg.id);
+    }
+
+    toast({ title: `Deleted ${ownMessages.length} message(s)` });
+    cancelSelection();
+  };
+
+  const canDeleteSelected = messages
+    .filter((m) => selectedMessages.has(m.id))
+    .some((m) => m.sender_id === user?.id);
+
+  const getMessagesToForward = () => {
+    return messages
+      .filter((m) => selectedMessages.has(m.id))
+      .map((m) => ({
+        text: getMessageText(m),
+        mediaUrl: m.media_url,
+        messageType: m.message_type,
+      }));
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
@@ -429,8 +503,25 @@ const ChatPage = () => {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background md:relative md:inset-auto md:h-screen md:ml-64 lg:ml-72">
+      {/* Selection Bar */}
+      <AnimatePresence>
+        {selectionMode && (
+          <MessageSelectionBar
+            selectedCount={selectedMessages.size}
+            onCancel={cancelSelection}
+            onCopy={handleCopySelected}
+            onForward={handleForwardSelected}
+            onDelete={handleDeleteSelected}
+            canDelete={canDeleteSelected}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
-      <header className="flex items-center gap-3 border-b border-border p-4 bg-card z-10">
+      <header className={cn(
+        "flex items-center gap-3 border-b border-border p-4 bg-card z-10",
+        selectionMode && "pt-16"
+      )}>
         <Link to="/messages" className="md:hidden">
           <ArrowLeft className="h-6 w-6 text-foreground" />
         </Link>
@@ -480,22 +571,22 @@ const ChatPage = () => {
             <DropdownMenuSeparator />
             {otherUser && (
               <>
-            <DropdownMenuItem onClick={isBlocked ? unblockUser : blockUser} disabled={blockLoading}>
-              <Ban className="h-4 w-4 mr-2" />
-              {isBlocked ? "Unblock" : "Block"}
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <ReportDialog reportedUserId={otherUser.id} trigger={<span className="flex items-center">Report</span>} />
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DeleteChatButton chatId={chatId!} />
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  </header>
+                <DropdownMenuItem onClick={isBlocked ? unblockUser : blockUser} disabled={blockLoading}>
+                  <Ban className="h-4 w-4 mr-2" />
+                  {isBlocked ? "Unblock" : "Block"}
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <ReportDialog reportedUserId={otherUser.id} trigger={<span className="flex items-center">Report</span>} />
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DeleteChatButton chatId={chatId!} />
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </header>
 
-      {/* E2E Notice - Smaller */}
+      {/* E2E Notice */}
       {encryptionReady && (
         <div className="bg-muted/50 px-3 py-1 text-center border-b border-border">
           <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
@@ -514,14 +605,33 @@ const ChatPage = () => {
               !isOwn &&
               (index === 0 || messages[index - 1].sender_id !== message.sender_id);
             const messageText = getMessageText(message);
+            const isSelected = selectedMessages.has(message.id);
 
             return (
               <motion.div
                 key={message.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={cn("flex gap-2 group", isOwn ? "justify-end" : "justify-start")}
+                className={cn(
+                  "flex gap-2 group",
+                  isOwn ? "justify-end" : "justify-start",
+                  isSelected && "bg-primary/10 -mx-2 px-2 py-1 rounded-lg"
+                )}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  handleLongPress(message.id);
+                }}
               >
+                {/* Selection checkbox */}
+                {selectionMode && (
+                  <div className="flex items-center">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleMessageSelection(message.id)}
+                    />
+                  </div>
+                )}
+
                 {!isOwn && (
                   <div className="w-8 flex-shrink-0">
                     {showAvatar && otherUser && (
@@ -535,7 +645,7 @@ const ChatPage = () => {
                 )}
                 
                 {/* Message options for own messages - left side */}
-                {isOwn && (
+                {isOwn && !selectionMode && (
                   <div className="flex items-center">
                     <MessageOptionsMenu
                       messageId={message.id}
@@ -547,8 +657,9 @@ const ChatPage = () => {
                 )}
                 
                 <div
+                  onClick={() => selectionMode && toggleMessageSelection(message.id)}
                   className={cn(
-                    "max-w-[70%] rounded-2xl px-4 py-2",
+                    "max-w-[70%] rounded-2xl px-4 py-2 cursor-pointer",
                     isOwn
                       ? "gradient-primary text-primary-foreground rounded-br-md"
                       : "bg-card text-foreground rounded-bl-md border border-border"
@@ -581,7 +692,7 @@ const ChatPage = () => {
                 </div>
                 
                 {/* Message options for other's messages - right side */}
-                {!isOwn && (
+                {!isOwn && !selectionMode && (
                   <div className="flex items-center">
                     <MessageOptionsMenu
                       messageId={message.id}
@@ -653,6 +764,14 @@ const ChatPage = () => {
           />
         </form>
       )}
+
+      {/* Forward Dialog */}
+      <ForwardMessageDialog
+        open={forwardDialogOpen}
+        onOpenChange={setForwardDialogOpen}
+        messages={getMessagesToForward()}
+        onForwarded={cancelSelection}
+      />
     </div>
   );
 };
