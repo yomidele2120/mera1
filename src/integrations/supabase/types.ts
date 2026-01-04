@@ -327,6 +327,7 @@ export type Database = {
           iv: string | null
           media_url: string | null
           message_type: string
+          reply_to_id: string | null
           seen: boolean
           sender_id: string
           sender_public_key: string | null
@@ -340,6 +341,7 @@ export type Database = {
           iv?: string | null
           media_url?: string | null
           message_type?: string
+          reply_to_id?: string | null
           seen?: boolean
           sender_id: string
           sender_public_key?: string | null
@@ -353,6 +355,7 @@ export type Database = {
           iv?: string | null
           media_url?: string | null
           message_type?: string
+          reply_to_id?: string | null
           seen?: boolean
           sender_id?: string
           sender_public_key?: string | null
@@ -364,6 +367,13 @@ export type Database = {
             columns: ["chat_id"]
             isOneToOne: false
             referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {

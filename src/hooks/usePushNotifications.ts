@@ -142,6 +142,148 @@ export const usePushNotifications = () => {
     };
   }, [user, showLocalNotification]);
 
+  // Subscribe to friend requests
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('notifications-friend-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'friend_requests'
+        },
+        async (payload) => {
+          const request = payload.new as { sender_id: string; receiver_id: string };
+          
+          // Only notify the receiver
+          if (request.receiver_id !== user.id) return;
+
+          if (document.hidden) {
+            const { data: sender } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', request.sender_id)
+              .single();
+
+            if (sender) {
+              showLocalNotification('Friend Request', {
+                body: `${sender.username} sent you a friend request`,
+                icon: sender.avatar_url || '/favicon.ico',
+                tag: 'friend-request',
+                data: { url: '/friends' }
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, showLocalNotification]);
+
+  // Subscribe to missed calls
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('notifications-calls')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'call_logs'
+        },
+        async (payload) => {
+          const call = payload.new as { caller_id: string; receiver_id: string; status: string };
+          
+          // Only notify receiver for missed calls
+          if (call.receiver_id !== user.id || call.status !== 'missed') return;
+
+          if (document.hidden) {
+            const { data: caller } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', call.caller_id)
+              .single();
+
+            if (caller) {
+              showLocalNotification('Missed Call', {
+                body: `You missed a call from ${caller.username}`,
+                icon: caller.avatar_url || '/favicon.ico',
+                tag: 'missed-call',
+                data: { url: '/calls' }
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, showLocalNotification]);
+
+  // Subscribe to new posts from followed users
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('notifications-posts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'posts'
+        },
+        async (payload) => {
+          const post = payload.new as { user_id: string; id: string; caption?: string };
+          
+          // Don't notify for own posts
+          if (post.user_id === user.id) return;
+
+          // Check if we follow this user
+          const { data: following } = await supabase
+            .from('followers')
+            .select('id')
+            .eq('follower_id', user.id)
+            .eq('following_id', post.user_id)
+            .single();
+
+          if (!following) return;
+
+          if (document.hidden) {
+            const { data: poster } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', post.user_id)
+              .single();
+
+            if (poster) {
+              showLocalNotification('New Post', {
+                body: `${poster.username} shared a new post`,
+                icon: poster.avatar_url || '/favicon.ico',
+                tag: `post-${post.id}`,
+                data: { url: `/post/${post.id}` }
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, showLocalNotification]);
+
   // Initialize on mount
   useEffect(() => {
     registerServiceWorker();

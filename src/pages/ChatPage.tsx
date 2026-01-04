@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Send, Image, Check, CheckCheck, Lock, MoreVertical, Ban, Phone, Video } from "lucide-react";
+import { ArrowLeft, Send, Image, Check, CheckCheck, Lock, MoreVertical, Ban, Phone, Video, Camera, Smile, Reply } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,9 @@ import { MessageOptionsMenu } from "@/components/chat/MessageOptionsMenu";
 import { DeleteChatButton } from "@/components/chat/DeleteChatButton";
 import { MessageSelectionBar } from "@/components/chat/MessageSelectionBar";
 import { ForwardMessageDialog } from "@/components/chat/ForwardMessageDialog";
+import { GifStickerPicker } from "@/components/chat/GifStickerPicker";
+import { CameraCapture } from "@/components/chat/CameraCapture";
+import { ReplyPreview, QuotedMessage } from "@/components/chat/ReplyPreview";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
 import { useBlocking } from "@/hooks/useBlocking";
 import { useOnlineStatus, getOnlineStatusText } from "@/hooks/useOnlineStatus";
@@ -55,6 +58,7 @@ interface Message {
   seen: boolean;
   sender_public_key: string | null;
   message_type: string;
+  reply_to_id: string | null;
 }
 
 interface OtherUser {
@@ -89,6 +93,16 @@ const ChatPage = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
   const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
+  
+  // New feature states
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [replyToMessage, setReplyToMessage] = useState<{
+    id: string;
+    text: string | null;
+    senderName: string;
+    isOwn: boolean;
+  } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -319,7 +333,9 @@ const ChatPage = () => {
 
     setSending(true);
     const messageText = newMessage;
+    const replyId = replyToMessage?.id || null;
     setNewMessage("");
+    setReplyToMessage(null);
 
     try {
       if (sharedKey && myPublicKeyString) {
@@ -331,6 +347,7 @@ const ChatPage = () => {
           iv: iv,
           sender_public_key: myPublicKeyString,
           message_type: "text",
+          reply_to_id: replyId,
         });
       } else {
         await supabase.from("messages").insert({
@@ -338,6 +355,7 @@ const ChatPage = () => {
           sender_id: user.id,
           text: messageText,
           message_type: "text",
+          reply_to_id: replyId,
         });
       }
     } catch (error) {
@@ -346,6 +364,79 @@ const ChatPage = () => {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleGifSelect = async (url: string, type: "gif" | "sticker") => {
+    if (!user || !chatId) return;
+
+    setSending(true);
+    try {
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        media_url: url,
+        message_type: type === "gif" ? "gif" : "sticker",
+        reply_to_id: replyToMessage?.id || null,
+      });
+      setReplyToMessage(null);
+    } catch (error) {
+      console.error("Error sending GIF/sticker:", error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleCameraCapture = async (blob: Blob, type: "photo" | "video") => {
+    if (!user || !chatId) return;
+
+    setSending(true);
+    try {
+      const ext = type === "photo" ? "jpg" : "webm";
+      const fileName = `${user.id}/${chatId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("private-media")
+        .upload(fileName, blob);
+
+      if (uploadError) throw uploadError;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const mediaUrl = `${supabaseUrl}/storage/v1/object/private-media/${fileName}`;
+
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        media_url: mediaUrl,
+        message_type: type === "photo" ? "image" : "video",
+        reply_to_id: replyToMessage?.id || null,
+      });
+      setReplyToMessage(null);
+    } catch (error) {
+      console.error("Error uploading camera capture:", error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleReply = (message: DecryptedMessage) => {
+    const text = getMessageText(message);
+    setReplyToMessage({
+      id: message.id,
+      text,
+      senderName: message.sender_id === user?.id ? "yourself" : otherUser?.username || "User",
+      isOwn: message.sender_id === user?.id,
+    });
+  };
+
+  const getReplyMessage = (replyToId: string | null): { text: string | null; senderName: string; isOwn: boolean } | null => {
+    if (!replyToId) return null;
+    const original = messages.find((m) => m.id === replyToId);
+    if (!original) return null;
+    return {
+      text: getMessageText(original),
+      senderName: original.sender_id === user?.id ? "You" : otherUser?.username || "User",
+      isOwn: original.sender_id === user?.id,
+    };
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -658,6 +749,7 @@ const ChatPage = () => {
                 
                 <div
                   onClick={() => selectionMode && toggleMessageSelection(message.id)}
+                  onDoubleClick={() => !selectionMode && handleReply(message)}
                   className={cn(
                     "max-w-[70%] rounded-2xl px-4 py-2 cursor-pointer",
                     isOwn
@@ -665,6 +757,14 @@ const ChatPage = () => {
                       : "bg-card text-foreground rounded-bl-md border border-border"
                   )}
                 >
+                  {/* Quoted message */}
+                  {message.reply_to_id && (() => {
+                    const quoted = getReplyMessage(message.reply_to_id);
+                    return quoted ? (
+                      <QuotedMessage originalMessage={quoted} isOwnMessage={isOwn} />
+                    ) : null;
+                  })()}
+                  
                   <PrivateMediaContent
                     messageType={message.message_type || "text"}
                     mediaUrl={message.media_url}
@@ -690,6 +790,16 @@ const ChatPage = () => {
                     )}
                   </div>
                 </div>
+                
+                {/* Reply button */}
+                {!selectionMode && (
+                  <button
+                    onClick={() => handleReply(message)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-muted transition-all"
+                  >
+                    <Reply className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                )}
                 
                 {/* Message options for other's messages - right side */}
                 {!isOwn && !selectionMode && (
@@ -724,14 +834,43 @@ const ChatPage = () => {
           )}
         </div>
       ) : (
-        <form onSubmit={sendMessage} className="border-t border-border p-4 bg-card safe-bottom">
+        <form onSubmit={sendMessage} className="border-t border-border p-4 bg-card safe-bottom relative">
+          {/* Reply Preview */}
+          <ReplyPreview
+            replyToMessage={replyToMessage}
+            onCancel={() => setReplyToMessage(null)}
+          />
+          
+          {/* GIF/Sticker Picker */}
+          <GifStickerPicker
+            open={gifPickerOpen}
+            onClose={() => setGifPickerOpen(false)}
+            onSelect={handleGifSelect}
+          />
+          
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
+              className="p-2 rounded-full hover:bg-muted transition-colors"
+            >
+              <Camera className="h-5 w-5 text-muted-foreground" />
+            </button>
+            
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="p-2 rounded-full hover:bg-muted transition-colors"
             >
               <Image className="h-5 w-5 text-muted-foreground" />
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setGifPickerOpen(!gifPickerOpen)}
+              className="p-2 rounded-full hover:bg-muted transition-colors"
+            >
+              <Smile className="h-5 w-5 text-muted-foreground" />
             </button>
             
             <VoiceRecorder
@@ -764,6 +903,13 @@ const ChatPage = () => {
           />
         </form>
       )}
+
+      {/* Camera Capture */}
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCameraCapture}
+      />
 
       {/* Forward Dialog */}
       <ForwardMessageDialog
