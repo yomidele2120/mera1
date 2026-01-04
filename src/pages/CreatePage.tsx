@@ -14,6 +14,22 @@ import { cn } from "@/lib/utils";
 
 type ContentType = "text" | "image" | "video" | "audio";
 type UploadType = "post" | "story";
+type StoryContentType = "media" | "text";
+
+const STORY_BACKGROUNDS = [
+  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+  "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+  "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
+  "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
+  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+  "linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%)",
+  "linear-gradient(135deg, #f12711 0%, #f5af19 100%)",
+  "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+];
 
 const CreatePage = () => {
   const [searchParams] = useSearchParams();
@@ -21,9 +37,12 @@ const CreatePage = () => {
   
   const [uploadType, setUploadType] = useState<UploadType>(defaultType);
   const [contentType, setContentType] = useState<ContentType>("image");
+  const [storyContentType, setStoryContentType] = useState<StoryContentType>("media");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [textContent, setTextContent] = useState("");
+  const [storyText, setStoryText] = useState("");
+  const [selectedBackground, setSelectedBackground] = useState(STORY_BACKGROUNDS[0]);
   const [caption, setCaption] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -31,6 +50,7 @@ const CreatePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -39,27 +59,43 @@ const CreatePage = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type based on content type
-      const isValidType = 
-        (contentType === "image" && file.type.startsWith("image/")) ||
-        (contentType === "video" && file.type.startsWith("video/")) ||
-        (contentType === "audio" && file.type.startsWith("audio/"));
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const isAudio = file.type.startsWith("audio/");
 
-      if (!isValidType) {
-        toast({
-          title: "Invalid file type",
-          description: `Please select a ${contentType} file`,
-          variant: "destructive",
-        });
-        return;
+      // For stories, accept both image and video
+      if (uploadType === "story") {
+        if (!isImage && !isVideo) {
+          toast({
+            title: "Invalid file type",
+            description: "Please select an image or video file",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // Validate file type based on content type for posts
+        const isValidType = 
+          (contentType === "image" && isImage) ||
+          (contentType === "video" && isVideo) ||
+          (contentType === "audio" && isAudio);
+
+        if (!isValidType) {
+          toast({
+            title: "Invalid file type",
+            description: `Please select a ${contentType} file`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // Validate file size (max 50MB for video, 10MB for others)
-      const maxSize = contentType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+      const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
       if (file.size > maxSize) {
         toast({
           title: "File too large",
-          description: `Please select a file smaller than ${contentType === "video" ? "50MB" : "10MB"}`,
+          description: `Please select a file smaller than ${isVideo ? "50MB" : "10MB"}`,
           variant: "destructive",
         });
         return;
@@ -111,11 +147,93 @@ const CreatePage = () => {
     }
   };
 
+  const generateTextStoryImage = async (): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1920;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+
+      // Parse gradient
+      const gradientMatch = selectedBackground.match(/linear-gradient\((\d+)deg,\s*(.+)\)/);
+      if (gradientMatch) {
+        const angle = parseInt(gradientMatch[1]);
+        const colors = gradientMatch[2].split(",").map(c => c.trim());
+        
+        const angleRad = (angle - 90) * Math.PI / 180;
+        const x1 = canvas.width / 2 - Math.cos(angleRad) * canvas.width;
+        const y1 = canvas.height / 2 - Math.sin(angleRad) * canvas.height;
+        const x2 = canvas.width / 2 + Math.cos(angleRad) * canvas.width;
+        const y2 = canvas.height / 2 + Math.sin(angleRad) * canvas.height;
+        
+        const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+        colors.forEach((color, i) => {
+          const colorMatch = color.match(/(#[a-fA-F0-9]+)\s*(\d+)?%?/);
+          if (colorMatch) {
+            gradient.addColorStop(i / (colors.length - 1), colorMatch[1]);
+          }
+        });
+        ctx.fillStyle = gradient;
+      } else {
+        ctx.fillStyle = selectedBackground;
+      }
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw text
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      const maxWidth = canvas.width - 120;
+      const lineHeight = 72;
+      const fontSize = 56;
+      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+      const words = storyText.split(" ");
+      const lines: string[] = [];
+      let currentLine = "";
+
+      for (const word of words) {
+        const testLine = currentLine + (currentLine ? " " : "") + word;
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      const totalHeight = lines.length * lineHeight;
+      const startY = (canvas.height - totalHeight) / 2;
+
+      lines.forEach((line, i) => {
+        ctx.fillText(line, canvas.width / 2, startY + i * lineHeight + lineHeight / 2);
+      });
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error("Failed to generate image"));
+        }
+      }, "image/jpeg", 0.9);
+    });
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
 
     // Validate based on content type
-    if (contentType === "text" && !textContent.trim()) {
+    if (contentType === "text" && uploadType === "post" && !textContent.trim()) {
       toast({
         title: "Content required",
         description: "Please enter some text",
@@ -124,7 +242,16 @@ const CreatePage = () => {
       return;
     }
 
-    if ((contentType === "image" || contentType === "video") && !selectedFile) {
+    if (uploadType === "story" && storyContentType === "text" && !storyText.trim()) {
+      toast({
+        title: "Content required",
+        description: "Please enter some text for your story",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if ((contentType === "image" || contentType === "video") && uploadType === "post" && !selectedFile) {
       toast({
         title: "File required",
         description: `Please select a ${contentType} file`,
@@ -133,7 +260,16 @@ const CreatePage = () => {
       return;
     }
 
-    if (contentType === "audio" && !audioBlob && !selectedFile) {
+    if (uploadType === "story" && storyContentType === "media" && !selectedFile) {
+      toast({
+        title: "File required",
+        description: "Please select an image or video",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (contentType === "audio" && uploadType === "post" && !audioBlob && !selectedFile) {
       toast({
         title: "Audio required",
         description: "Please record or upload an audio file",
@@ -147,8 +283,25 @@ const CreatePage = () => {
     try {
       let mediaUrl: string | null = null;
 
+      // Handle text story - generate image from canvas
+      if (uploadType === "story" && storyContentType === "text") {
+        const imageBlob = await generateTextStoryImage();
+        const fileName = `${user.id}/${Date.now()}.jpg`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("media")
+          .upload(fileName, imageBlob);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("media")
+          .getPublicUrl(fileName);
+
+        mediaUrl = urlData.publicUrl;
+      }
       // Upload media if present
-      if (selectedFile || audioBlob) {
+      else if (selectedFile || audioBlob) {
         const fileToUpload = audioBlob || selectedFile!;
         const ext = audioBlob ? "webm" : selectedFile!.name.split(".").pop();
         const fileName = `${user.id}/${Date.now()}.${ext}`;
@@ -185,7 +338,7 @@ const CreatePage = () => {
         if (!mediaUrl) {
           toast({
             title: "Media required",
-            description: "Stories require an image or video",
+            description: "Stories require media content",
             variant: "destructive",
           });
           setIsUploading(false);
@@ -222,6 +375,7 @@ const CreatePage = () => {
     setPreview(null);
     setAudioBlob(null);
     setTextContent("");
+    setStoryText("");
     setCaption("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -244,6 +398,11 @@ const CreatePage = () => {
     { id: "audio", icon: Mic, label: "Audio" },
   ] as const;
 
+  const storyContentTypes = [
+    { id: "media", icon: Image, label: "Photo/Video" },
+    { id: "text", icon: Type, label: "Text" },
+  ] as const;
+
   return (
     <MainLayout>
       <div className="animate-fade-up">
@@ -257,7 +416,7 @@ const CreatePage = () => {
 
           <TabsContent value={uploadType} className="mt-0">
             <div className="card-base p-6 space-y-6">
-              {/* Content Type Selector */}
+              {/* Content Type Selector for Posts */}
               {uploadType === "post" && (
                 <div className="flex gap-2">
                   {contentTypes.map((type) => (
@@ -281,7 +440,31 @@ const CreatePage = () => {
                 </div>
               )}
 
-              {/* Text Content */}
+              {/* Content Type Selector for Stories */}
+              {uploadType === "story" && (
+                <div className="flex gap-2">
+                  {storyContentTypes.map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => {
+                        setStoryContentType(type.id as StoryContentType);
+                        clearSelection();
+                      }}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border-2 transition-all",
+                        storyContentType === type.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <type.icon className="h-4 w-4" />
+                      <span className="text-sm font-medium">{type.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Text Content for Posts */}
               {contentType === "text" && uploadType === "post" && (
                 <div className="space-y-3">
                   <Textarea
@@ -297,8 +480,55 @@ const CreatePage = () => {
                 </div>
               )}
 
-              {/* Media Content */}
-              {(contentType !== "text" || uploadType === "story") && (
+              {/* Text Story with Background */}
+              {uploadType === "story" && storyContentType === "text" && (
+                <div className="space-y-4">
+                  {/* Background Preview */}
+                  <div
+                    className="relative aspect-[9/16] max-h-80 mx-auto rounded-xl overflow-hidden flex items-center justify-center p-6"
+                    style={{ background: selectedBackground }}
+                  >
+                    <p className="text-white text-center text-xl font-bold leading-relaxed break-words">
+                      {storyText || "Your text here..."}
+                    </p>
+                  </div>
+
+                  {/* Text Input */}
+                  <Textarea
+                    placeholder="Write your story text..."
+                    value={storyText}
+                    onChange={(e) => setStoryText(e.target.value)}
+                    className="min-h-24 resize-none input-field"
+                    maxLength={500}
+                  />
+                  <div className="flex justify-end text-sm text-muted-foreground">
+                    <span>{storyText.length}/500</span>
+                  </div>
+
+                  {/* Background Selector */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Choose background</p>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {STORY_BACKGROUNDS.map((bg, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedBackground(bg)}
+                          className={cn(
+                            "w-12 h-12 rounded-lg flex-shrink-0 transition-all",
+                            selectedBackground === bg
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                              : "hover:opacity-80"
+                          )}
+                          style={{ background: bg }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Media Content for Posts or Stories */}
+              {((contentType !== "text" && uploadType === "post") || (uploadType === "story" && storyContentType === "media")) && (
                 <>
                   {!preview ? (
                     <div className="space-y-4">
@@ -333,7 +563,9 @@ const CreatePage = () => {
                         className="flex flex-col items-center justify-center gap-4 py-16 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all"
                       >
                         <div className="h-16 w-16 rounded-full gradient-primary flex items-center justify-center">
-                          {contentType === "video" ? (
+                          {uploadType === "story" ? (
+                            <Image className="h-8 w-8 text-primary-foreground" />
+                          ) : contentType === "video" ? (
                             <Video className="h-8 w-8 text-primary-foreground" />
                           ) : contentType === "audio" ? (
                             <Mic className="h-8 w-8 text-primary-foreground" />
@@ -343,10 +575,12 @@ const CreatePage = () => {
                         </div>
                         <div className="text-center">
                           <p className="font-semibold text-foreground">
-                            {uploadType === "story" ? "Select media" : `Upload ${contentType}`}
+                            {uploadType === "story" ? "Select photo or video" : `Upload ${contentType}`}
                           </p>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {contentType === "video"
+                            {uploadType === "story"
+                              ? "JPG, PNG, GIF, MP4, MOV (max 50MB)"
+                              : contentType === "video"
                               ? "MP4, MOV, WebM (max 50MB)"
                               : contentType === "audio"
                               ? "MP3, WAV, M4A (max 10MB)"
@@ -358,7 +592,7 @@ const CreatePage = () => {
                   ) : (
                     <div className="space-y-4">
                       <div className="relative rounded-xl overflow-hidden bg-muted">
-                        {contentType === "video" || (selectedFile?.type.startsWith("video/")) ? (
+                        {selectedFile?.type.startsWith("video/") ? (
                           <video
                             src={preview}
                             className="w-full max-h-96 object-contain"
@@ -383,23 +617,25 @@ const CreatePage = () => {
                         </button>
                       </div>
 
-                      {/* Caption */}
-                      <div className="space-y-3">
-                        <Textarea
-                          placeholder="Write a caption..."
-                          value={caption}
-                          onChange={(e) => setCaption(e.target.value)}
-                          className="min-h-24 resize-none input-field"
-                          maxLength={2200}
-                        />
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <button className="flex items-center gap-2 text-primary hover:underline">
-                            <Sparkles className="h-4 w-4" />
-                            AI Caption (coming soon)
-                          </button>
-                          <span>{caption.length}/2200</span>
+                      {/* Caption for posts only */}
+                      {uploadType === "post" && (
+                        <div className="space-y-3">
+                          <Textarea
+                            placeholder="Write a caption..."
+                            value={caption}
+                            onChange={(e) => setCaption(e.target.value)}
+                            className="min-h-24 resize-none input-field"
+                            maxLength={2200}
+                          />
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <button className="flex items-center gap-2 text-primary hover:underline">
+                              <Sparkles className="h-4 w-4" />
+                              AI Caption (coming soon)
+                            </button>
+                            <span>{caption.length}/2200</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -408,7 +644,13 @@ const CreatePage = () => {
               {/* Submit Button */}
               <Button
                 onClick={handleSubmit}
-                disabled={isUploading || (contentType === "text" ? !textContent.trim() : !preview)}
+                disabled={
+                  isUploading || 
+                  (uploadType === "post" && contentType === "text" && !textContent.trim()) ||
+                  (uploadType === "post" && contentType !== "text" && !preview) ||
+                  (uploadType === "story" && storyContentType === "text" && !storyText.trim()) ||
+                  (uploadType === "story" && storyContentType === "media" && !preview)
+                }
                 className="btn-primary w-full h-12"
               >
                 {isUploading ? (
