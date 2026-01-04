@@ -85,20 +85,38 @@ export const SharePostToMessageDialog = ({
     }
   };
 
+  const getMessageType = (url: string | null): string => {
+    if (!url) return "text";
+    const lower = url.toLowerCase();
+    if (lower.match(/\.(mp4|mov|webm|avi)(\?|$)/)) return "video";
+    if (lower.match(/\.(mp3|wav|ogg|m4a)(\?|$)/)) return "audio";
+    if (lower.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/)) return "image";
+    return "image"; // Default to image for media posts
+  };
+
   const handleSend = async (chatUser: ChatUser) => {
     if (!user) return;
 
     setSending(chatUser.id);
     try {
-      const postUrl = `${window.location.origin}/post/${postId}`;
-      const messageText = `Shared a post: ${postUrl}${caption ? `\n\n"${caption}"` : ""}`;
-
-      await supabase.from("messages").insert({
+      const messageType = getMessageType(mediaUrl);
+      const messageData: any = {
         chat_id: chatUser.chatId,
         sender_id: user.id,
-        text: messageText,
-        message_type: "text",
-      });
+        message_type: messageType,
+      };
+
+      if (mediaUrl) {
+        messageData.media_url = mediaUrl;
+        if (caption) {
+          messageData.text = caption;
+        }
+      } else {
+        messageData.text = caption || "Shared a post";
+        messageData.message_type = "text";
+      }
+
+      await supabase.from("messages").insert(messageData);
 
       toast({
         title: "Post shared",
