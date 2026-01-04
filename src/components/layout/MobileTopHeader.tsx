@@ -1,10 +1,11 @@
-import { Bell, Users, MessageCircle } from "lucide-react";
+import { Bell, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useNotificationBadges } from "@/hooks/useNotificationBadges";
+import meraLogo from "@/assets/mera-logo.png";
 
 export const MobileTopHeader = () => {
   const location = useLocation();
-  const { unreadMessages, pendingFriendRequests, unreadNotifications } = useNotificationBadges();
+  const { unreadMessages, unreadNotifications } = useNotificationBadges();
 
   // Only show on the news feed (home page)
   if (location.pathname !== "/" && location.pathname !== "/feed") return null;
@@ -12,8 +13,8 @@ export const MobileTopHeader = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50 safe-top md:hidden">
       <div className="flex items-center justify-between px-4 py-3">
-        {/* Left side - Notifications & Friends */}
-        <div className="flex items-center gap-4">
+        {/* Left side - Notifications */}
+        <div className="flex items-center">
           <Link
             to="/notifications"
             className="relative p-2 rounded-full transition-colors text-muted-foreground hover:bg-muted"
@@ -25,22 +26,11 @@ export const MobileTopHeader = () => {
               </span>
             )}
           </Link>
-          <Link
-            to="/friends"
-            className="relative p-2 rounded-full transition-colors text-muted-foreground hover:bg-muted"
-          >
-            <Users className="h-5 w-5" />
-            {pendingFriendRequests > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
-                {pendingFriendRequests > 9 ? "9+" : pendingFriendRequests}
-              </span>
-            )}
-          </Link>
         </div>
 
-        {/* Center - App name/logo */}
-        <Link to="/" className="font-display text-xl font-bold text-foreground">
-          Mera
+        {/* Center - App logo */}
+        <Link to="/" className="absolute left-1/2 -translate-x-1/2">
+          <img src={meraLogo} alt="Mera" className="h-8 w-auto" />
         </Link>
 
         {/* Right side - Messages */}
