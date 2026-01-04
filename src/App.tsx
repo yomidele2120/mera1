@@ -16,6 +16,7 @@ import CreatePage from "./pages/CreatePage";
 import ProfilePage from "./pages/ProfilePage";
 import MessagesPage from "./pages/MessagesPage";
 import ChatPage from "./pages/ChatPage";
+import AIChatPage from "./pages/AIChatPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PostPage from "./pages/PostPage";
 import StoryViewerPage from "./pages/StoryViewerPage";
@@ -69,6 +70,7 @@ const AppRoutes = () => {
       <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="/user/:username" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+      <Route path="/messages/ai" element={<ProtectedRoute><AIChatPage /></ProtectedRoute>} />
       <Route path="/messages/:chatId" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
       <Route path="/post/:postId" element={<ProtectedRoute><PostPage /></ProtectedRoute>} />

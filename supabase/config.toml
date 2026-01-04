@@ -2,3 +2,9 @@ project_id = "rvmeuepkxmfosddxuoth"
 
 [functions.get-signed-url]
 verify_jwt = true
+
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.agora-credentials]
+verify_jwt = true
