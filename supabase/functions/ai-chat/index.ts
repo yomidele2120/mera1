@@ -12,9 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) {
-      console.error("GROQ_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("LOVABLE_API_KEY is not configured");
       throw new Error("AI service is not configured");
     }
 
@@ -48,29 +48,34 @@ Be warm and use emojis occasionally to feel more human. Always be respectful and
       },
     ];
 
-    // Call Groq API
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // Call Lovable AI Gateway
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.1-70b-versatile",
+        model: "google/gemini-2.5-flash",
         messages,
-        temperature: 0.7,
-        max_tokens: 1024,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Groq API error:", response.status, errorText);
+      console.error("Lovable AI error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Too many requests. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "AI service credits exhausted. Please try again later." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
