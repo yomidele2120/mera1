@@ -224,16 +224,25 @@ const ProfilePage = () => {
   return (
     <MainLayout>
       <div className="animate-fade-up">
-        {/* Back button for viewing other users */}
-        {!isOwnProfile && (
-          <button 
-            onClick={() => navigate(-1)} 
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 md:hidden"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back</span>
-          </button>
-        )}
+        {/* Mobile header with settings for own profile or back button for others */}
+        <div className="flex items-center justify-between mb-4 md:hidden">
+          {!isOwnProfile ? (
+            <button 
+              onClick={() => navigate(-1)} 
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span>Back</span>
+            </button>
+          ) : (
+            <div /> 
+          )}
+          {isOwnProfile && (
+            <Link to="/settings" className="p-2 rounded-full hover:bg-muted transition-colors">
+              <Settings className="h-5 w-5 text-muted-foreground" />
+            </Link>
+          )}
+        </div>
         
         {/* Profile Header */}
         <div className="card-base p-6 mb-6">
@@ -254,7 +263,7 @@ const ProfilePage = () => {
                 </h1>
 
                 {isOwnProfile ? (
-                  <Link to="/settings">
+                  <Link to="/settings" className="hidden md:block">
                     <Button variant="outline" size="sm" className="gap-2">
                       <Settings className="h-4 w-4" />
                       Edit Profile
