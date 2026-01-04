@@ -81,26 +81,24 @@ const PushNotificationInit = () => {
 
 const AppRoutes = () => {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
-        <Route path="/" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
-        <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
-        <Route path="/create" element={<ProtectedRoute><CreatePage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/user/:username" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-        <Route path="/messages/ai" element={<ProtectedRoute><AIChatPage /></ProtectedRoute>} />
-        <Route path="/messages/:chatId" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-        <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-        <Route path="/post/:postId" element={<ProtectedRoute><PostPage /></ProtectedRoute>} />
-        <Route path="/stories/:username" element={<ProtectedRoute><StoryViewerPage /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-        <Route path="/calls" element={<ProtectedRoute><CallsPage /></ProtectedRoute>} />
-        <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+    <Routes>
+      <Route path="/auth" element={<PublicRoute><Suspense fallback={<PageLoader />}><AuthPage /></Suspense></PublicRoute>} />
+      <Route path="/" element={<ProtectedRoute><Suspense fallback={null}><FeedPage /></Suspense></ProtectedRoute>} />
+      <Route path="/search" element={<ProtectedRoute><Suspense fallback={null}><SearchPage /></Suspense></ProtectedRoute>} />
+      <Route path="/create" element={<ProtectedRoute><Suspense fallback={null}><CreatePage /></Suspense></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Suspense fallback={null}><ProfilePage /></Suspense></ProtectedRoute>} />
+      <Route path="/user/:username" element={<ProtectedRoute><Suspense fallback={null}><ProfilePage /></Suspense></ProtectedRoute>} />
+      <Route path="/messages" element={<ProtectedRoute><Suspense fallback={null}><MessagesPage /></Suspense></ProtectedRoute>} />
+      <Route path="/messages/ai" element={<ProtectedRoute><Suspense fallback={null}><AIChatPage /></Suspense></ProtectedRoute>} />
+      <Route path="/messages/:chatId" element={<ProtectedRoute><Suspense fallback={null}><ChatPage /></Suspense></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><Suspense fallback={null}><NotificationsPage /></Suspense></ProtectedRoute>} />
+      <Route path="/post/:postId" element={<ProtectedRoute><Suspense fallback={null}><PostPage /></Suspense></ProtectedRoute>} />
+      <Route path="/stories/:username" element={<ProtectedRoute><Suspense fallback={null}><StoryViewerPage /></Suspense></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Suspense fallback={null}><SettingsPage /></Suspense></ProtectedRoute>} />
+      <Route path="/calls" element={<ProtectedRoute><Suspense fallback={null}><CallsPage /></Suspense></ProtectedRoute>} />
+      <Route path="/friends" element={<ProtectedRoute><Suspense fallback={null}><FriendsPage /></Suspense></ProtectedRoute>} />
+      <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+    </Routes>
   );
 };
 

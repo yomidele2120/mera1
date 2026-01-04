@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import authHero from "@/assets/auth-hero.jpg";
 import { z } from "zod";
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "forgot";
 type SignupStep = 1 | 2 | 3 | 4;
 
 // Validation schemas
@@ -56,8 +56,9 @@ export const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [userNumber, setUserNumber] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [resetSent, setResetSent] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -175,6 +176,41 @@ export const AuthPage = () => {
     setGender("");
     setErrors({});
     setUserNumber(null);
+    setResetSent(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setErrors({ email: "Please enter your email address" });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { error } = await resetPassword(email);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setResetSent(true);
+        toast({
+          title: "Email sent",
+          description: "Check your email for the password reset link",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleContinue = () => {
@@ -674,6 +710,20 @@ export const AuthPage = () => {
                       </button>
                     </div>
 
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode("forgot");
+                          setResetSent(false);
+                          setErrors({});
+                        }}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+
                     <Button
                       type="submit"
                       disabled={loading}
@@ -695,12 +745,101 @@ export const AuthPage = () => {
                     </Button>
                   </form>
                 </motion.div>
+              ) : mode === "forgot" ? (
+                <motion.div
+                  key="forgot"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="mb-8 text-center">
+                    <h2 className="font-display text-2xl font-bold text-foreground mb-2">
+                      Reset password
+                    </h2>
+                    <p className="text-muted-foreground">
+                      {resetSent 
+                        ? "Check your email for the reset link" 
+                        : "Enter your email to receive a reset link"}
+                    </p>
+                  </div>
+
+                  {resetSent ? (
+                    <div className="space-y-4">
+                      <div className="bg-accent/50 rounded-xl p-6 text-center">
+                        <Mail className="h-10 w-10 text-primary mx-auto mb-3" />
+                        <p className="text-sm text-foreground font-medium mb-1">
+                          Email sent!
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          We've sent a password reset link to {email}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => setMode("login")}
+                        className="btn-primary w-full h-12 text-base"
+                      >
+                        <ArrowLeft className="h-5 w-5 mr-2" />
+                        Back to sign in
+                      </Button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <div>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            type="email"
+                            placeholder="Email address"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="pl-12 input-field"
+                          />
+                        </div>
+                        {errors.email && (
+                          <p className="text-sm text-destructive mt-1">{errors.email}</p>
+                        )}
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={loading}
+                        className="btn-primary w-full h-12 text-base"
+                      >
+                        {loading ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          >
+                            <Sparkles className="h-5 w-5" />
+                          </motion.div>
+                        ) : (
+                          <>
+                            Send reset link
+                            <ArrowRight className="h-5 w-5 ml-2" />
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setMode("login")}
+                        className="w-full h-12"
+                      >
+                        <ArrowLeft className="h-5 w-5 mr-2" />
+                        Back to sign in
+                      </Button>
+                    </form>
+                  )}
+                </motion.div>
               ) : (
                 renderSignupStep()
               )}
             </AnimatePresence>
 
-            {(mode === "login" || signupStep < 4) && (
+            {(mode === "login" || (mode === "signup" && signupStep < 4)) && (
               <div className="mt-6 text-center">
                 <p className="text-sm text-muted-foreground">
                   {mode === "login" ? "Don't have an account?" : "Already have an account?"}
