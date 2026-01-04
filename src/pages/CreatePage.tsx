@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Image, X, Sparkles, Send, Type, Video, Mic } from "lucide-react";
+import { Image, X, Sparkles, Send, Type, Video, Mic, Minus, Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,30 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Slider } from "@/components/ui/slider";
 
 type ContentType = "text" | "image" | "video" | "audio";
 type UploadType = "post" | "story";
 type StoryContentType = "media" | "text";
+type BackgroundType = "gradient" | "solid" | "image";
 
-const STORY_BACKGROUNDS = [
+interface FontStyle {
+  id: string;
+  name: string;
+  fontFamily: string;
+  fontWeight: string;
+}
+
+const FONT_STYLES: FontStyle[] = [
+  { id: "classic", name: "Classic", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", fontWeight: "bold" },
+  { id: "elegant", name: "Elegant", fontFamily: "'Georgia', 'Times New Roman', serif", fontWeight: "normal" },
+  { id: "modern", name: "Modern", fontFamily: "'Helvetica Neue', Arial, sans-serif", fontWeight: "300" },
+  { id: "playful", name: "Playful", fontFamily: "'Comic Sans MS', 'Chalkboard', cursive", fontWeight: "bold" },
+  { id: "typewriter", name: "Typewriter", fontFamily: "'Courier New', 'Courier', monospace", fontWeight: "normal" },
+  { id: "bold", name: "Bold", fontFamily: "'Impact', 'Haettenschweiler', sans-serif", fontWeight: "bold" },
+];
+
+const GRADIENT_BACKGROUNDS = [
   "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
   "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
   "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
@@ -24,11 +42,33 @@ const STORY_BACKGROUNDS = [
   "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
   "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
   "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
-  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
   "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
   "linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%)",
   "linear-gradient(135deg, #f12711 0%, #f5af19 100%)",
   "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+  "linear-gradient(135deg, #232526 0%, #414345 100%)",
+  "linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+  "linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)",
+  "linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)",
+];
+
+const SOLID_BACKGROUNDS = [
+  "#1a1a2e", "#16213e", "#0f3460", "#e94560",
+  "#000000", "#ffffff", "#ff6b6b", "#4ecdc4",
+  "#45b7d1", "#96ceb4", "#ffeaa7", "#dfe6e9",
+  "#6c5ce7", "#a29bfe", "#fd79a8", "#00b894",
+  "#e17055", "#74b9ff", "#55efc4", "#fab1a0",
+];
+
+const IMAGE_BACKGROUNDS = [
+  "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&q=80",
+  "https://images.unsplash.com/photo-1507400492013-162706c8c05e?w=800&q=80",
+  "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&q=80",
+  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&q=80",
+  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80",
+  "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&q=80",
+  "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=800&q=80",
+  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&q=80",
 ];
 
 const CreatePage = () => {
@@ -42,7 +82,10 @@ const CreatePage = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [textContent, setTextContent] = useState("");
   const [storyText, setStoryText] = useState("");
-  const [selectedBackground, setSelectedBackground] = useState(STORY_BACKGROUNDS[0]);
+  const [backgroundType, setBackgroundType] = useState<BackgroundType>("gradient");
+  const [selectedBackground, setSelectedBackground] = useState(GRADIENT_BACKGROUNDS[0]);
+  const [selectedFont, setSelectedFont] = useState<FontStyle>(FONT_STYLES[0]);
+  const [fontSize, setFontSize] = useState(56);
   const [caption, setCaption] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -148,7 +191,7 @@ const CreatePage = () => {
   };
 
   const generateTextStoryImage = async (): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const canvas = document.createElement("canvas");
       canvas.width = 1080;
       canvas.height = 1920;
@@ -159,40 +202,76 @@ const CreatePage = () => {
         return;
       }
 
-      // Parse gradient
-      const gradientMatch = selectedBackground.match(/linear-gradient\((\d+)deg,\s*(.+)\)/);
-      if (gradientMatch) {
-        const angle = parseInt(gradientMatch[1]);
-        const colors = gradientMatch[2].split(",").map(c => c.trim());
-        
-        const angleRad = (angle - 90) * Math.PI / 180;
-        const x1 = canvas.width / 2 - Math.cos(angleRad) * canvas.width;
-        const y1 = canvas.height / 2 - Math.sin(angleRad) * canvas.height;
-        const x2 = canvas.width / 2 + Math.cos(angleRad) * canvas.width;
-        const y2 = canvas.height / 2 + Math.sin(angleRad) * canvas.height;
-        
-        const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
-        colors.forEach((color, i) => {
-          const colorMatch = color.match(/(#[a-fA-F0-9]+)\s*(\d+)?%?/);
-          if (colorMatch) {
-            gradient.addColorStop(i / (colors.length - 1), colorMatch[1]);
-          }
-        });
-        ctx.fillStyle = gradient;
-      } else {
+      // Handle different background types
+      if (backgroundType === "image") {
+        try {
+          const img = new window.Image();
+          img.crossOrigin = "anonymous";
+          await new Promise<void>((imgResolve, imgReject) => {
+            img.onload = () => imgResolve();
+            img.onerror = () => imgReject(new Error("Failed to load background image"));
+            img.src = selectedBackground;
+          });
+          
+          // Draw image covering canvas
+          const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+          const x = (canvas.width - img.width * scale) / 2;
+          const y = (canvas.height - img.height * scale) / 2;
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+          
+          // Add dark overlay for text readability
+          ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } catch (error) {
+          // Fallback to solid black if image fails
+          ctx.fillStyle = "#1a1a2e";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+      } else if (backgroundType === "solid") {
         ctx.fillStyle = selectedBackground;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        // Parse gradient
+        const gradientMatch = selectedBackground.match(/linear-gradient\((\d+)deg,\s*(.+)\)/);
+        if (gradientMatch) {
+          const angle = parseInt(gradientMatch[1]);
+          const colors = gradientMatch[2].split(",").map(c => c.trim());
+          
+          const angleRad = (angle - 90) * Math.PI / 180;
+          const x1 = canvas.width / 2 - Math.cos(angleRad) * canvas.width;
+          const y1 = canvas.height / 2 - Math.sin(angleRad) * canvas.height;
+          const x2 = canvas.width / 2 + Math.cos(angleRad) * canvas.width;
+          const y2 = canvas.height / 2 + Math.sin(angleRad) * canvas.height;
+          
+          const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+          colors.forEach((color, i) => {
+            const colorMatch = color.match(/(#[a-fA-F0-9]+)\s*(\d+)?%?/);
+            if (colorMatch) {
+              gradient.addColorStop(i / (colors.length - 1), colorMatch[1]);
+            }
+          });
+          ctx.fillStyle = gradient;
+        } else {
+          ctx.fillStyle = selectedBackground;
+        }
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw text
+      // Draw text with selected font style
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       
+      // Add text shadow for readability
+      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      
       const maxWidth = canvas.width - 120;
-      const lineHeight = 72;
-      const fontSize = 56;
-      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      const scaledFontSize = fontSize * 1.5; // Scale for canvas resolution
+      const lineHeight = scaledFontSize * 1.3;
+      ctx.font = `${selectedFont.fontWeight} ${scaledFontSize}px ${selectedFont.fontFamily}`;
 
       const words = storyText.split(" ");
       const lines: string[] = [];
@@ -486,9 +565,20 @@ const CreatePage = () => {
                   {/* Background Preview */}
                   <div
                     className="relative aspect-[9/16] max-h-80 mx-auto rounded-xl overflow-hidden flex items-center justify-center p-6"
-                    style={{ background: selectedBackground }}
+                    style={
+                      backgroundType === "image"
+                        ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${selectedBackground})`, backgroundSize: "cover", backgroundPosition: "center" }
+                        : { background: selectedBackground }
+                    }
                   >
-                    <p className="text-white text-center text-xl font-bold leading-relaxed break-words">
+                    <p 
+                      className="text-white text-center leading-relaxed break-words drop-shadow-lg"
+                      style={{ 
+                        fontFamily: selectedFont.fontFamily, 
+                        fontWeight: selectedFont.fontWeight,
+                        fontSize: `${fontSize * 0.4}px`
+                      }}
+                    >
                       {storyText || "Your text here..."}
                     </p>
                   </div>
@@ -505,11 +595,86 @@ const CreatePage = () => {
                     <span>{storyText.length}/500</span>
                   </div>
 
-                  {/* Background Selector */}
+                  {/* Font Style Selector */}
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Choose background</p>
+                    <p className="text-sm font-medium text-foreground">Font style</p>
                     <div className="flex gap-2 overflow-x-auto pb-2">
-                      {STORY_BACKGROUNDS.map((bg, index) => (
+                      {FONT_STYLES.map((font) => (
+                        <button
+                          key={font.id}
+                          onClick={() => setSelectedFont(font)}
+                          className={cn(
+                            "px-4 py-2 rounded-lg flex-shrink-0 transition-all border-2 text-sm",
+                            selectedFont.id === font.id
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border hover:border-primary/50"
+                          )}
+                          style={{ fontFamily: font.fontFamily, fontWeight: font.fontWeight }}
+                        >
+                          {font.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Font Size Slider */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground">Font size</p>
+                      <span className="text-sm text-muted-foreground">{fontSize}px</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setFontSize(Math.max(24, fontSize - 4))}
+                        className="p-1 rounded hover:bg-muted"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <Slider
+                        value={[fontSize]}
+                        onValueChange={(v) => setFontSize(v[0])}
+                        min={24}
+                        max={96}
+                        step={4}
+                        className="flex-1"
+                      />
+                      <button 
+                        onClick={() => setFontSize(Math.min(96, fontSize + 4))}
+                        className="p-1 rounded hover:bg-muted"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Background Type Tabs */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Background</p>
+                    <div className="flex gap-2 mb-3">
+                      {(["gradient", "solid", "image"] as BackgroundType[]).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => {
+                            setBackgroundType(type);
+                            if (type === "gradient") setSelectedBackground(GRADIENT_BACKGROUNDS[0]);
+                            else if (type === "solid") setSelectedBackground(SOLID_BACKGROUNDS[0]);
+                            else setSelectedBackground(IMAGE_BACKGROUNDS[0]);
+                          }}
+                          className={cn(
+                            "px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 capitalize",
+                            backgroundType === type
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Background Options */}
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {backgroundType === "gradient" && GRADIENT_BACKGROUNDS.map((bg, index) => (
                         <button
                           key={index}
                           onClick={() => setSelectedBackground(bg)}
@@ -520,6 +685,33 @@ const CreatePage = () => {
                               : "hover:opacity-80"
                           )}
                           style={{ background: bg }}
+                        />
+                      ))}
+                      {backgroundType === "solid" && SOLID_BACKGROUNDS.map((bg, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedBackground(bg)}
+                          className={cn(
+                            "w-12 h-12 rounded-lg flex-shrink-0 transition-all border",
+                            selectedBackground === bg
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                              : "hover:opacity-80",
+                            bg === "#ffffff" ? "border-border" : "border-transparent"
+                          )}
+                          style={{ background: bg }}
+                        />
+                      ))}
+                      {backgroundType === "image" && IMAGE_BACKGROUNDS.map((bg, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedBackground(bg)}
+                          className={cn(
+                            "w-12 h-12 rounded-lg flex-shrink-0 transition-all bg-cover bg-center",
+                            selectedBackground === bg
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                              : "hover:opacity-80"
+                          )}
+                          style={{ backgroundImage: `url(${bg})` }}
                         />
                       ))}
                     </div>
