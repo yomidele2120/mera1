@@ -1,0 +1,47 @@
+{
+  "name": "mera1",
+  "short_name": "mera1",
+  "description": "Social media app with messaging, stories, and more",
+  "theme_color": "#e85a3f",
+  "background_color": "#faf9f8",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"],
+  "shortcuts": [
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "description": "Open your messages",
+      "url": "/messages",
+      "icons": [{ "src": "/favicon.ico", "sizes": "64x64" }]
+    },
+    {
+      "name": "Create Post",
+      "short_name": "Create",
+      "description": "Create a new post",
+      "url": "/create",
+      "icons": [{ "src": "/favicon.ico", "sizes": "64x64" }]
+    }
+  ]
+}
