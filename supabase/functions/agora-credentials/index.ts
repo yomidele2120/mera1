@@ -197,7 +197,7 @@ serve(async (req) => {
   }
 
   try {
-    const AGORA_APP_ID = Deno.env.get("AGORA_APP_ID");
+    const AGORA_APP_ID = Deno.env.get("NEXT_PUBLIC_AGORA_APP_ID");
     const AGORA_APP_CERTIFICATE = Deno.env.get("AGORA_APP_CERTIFICATE");
     
     if (!AGORA_APP_ID) {
