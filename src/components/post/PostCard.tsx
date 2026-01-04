@@ -1,9 +1,11 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Heart, MessageCircle, Bookmark } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { UserAvatar } from "@/components/common/Avatar";
 import { PostContent } from "@/components/post/PostContent";
+import { PostOptionsMenu } from "@/components/post/PostOptionsMenu";
+import { SharePostButton } from "@/components/post/SharePostButton";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +35,7 @@ interface PostCardProps {
 export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(
     post.likes?.some((like) => like.user_id === user?.id) ?? false
   );
@@ -98,6 +101,10 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
     doubleTapRef.current = now;
   };
 
+  const handlePostDeleted = () => {
+    navigate("/");
+  };
+
   const handleCommentClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (onCommentClick) {
@@ -128,9 +135,13 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
             </p>
           </div>
         </Link>
-        <button className="p-2 rounded-full hover:bg-muted transition-colors">
-          <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-        </button>
+        <PostOptionsMenu
+          postId={post.id}
+          postUserId={post.user_id}
+          mediaUrl={post.media_url}
+          caption={post.caption}
+          onDeleted={handlePostDeleted}
+        />
       </div>
 
       {/* Content */}
@@ -180,9 +191,11 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
             <button onClick={handleCommentClick}>
               <MessageCircle className="h-6 w-6 text-foreground hover:text-muted-foreground transition-colors" />
             </button>
-            <button>
-              <Share2 className="h-6 w-6 text-foreground hover:text-muted-foreground transition-colors" />
-            </button>
+            <SharePostButton
+              postId={post.id}
+              mediaUrl={post.media_url}
+              caption={post.caption}
+            />
           </div>
           <motion.button
             whileTap={{ scale: 0.9 }}
