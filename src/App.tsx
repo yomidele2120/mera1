@@ -22,6 +22,7 @@ import PostPage from "./pages/PostPage";
 import StoryViewerPage from "./pages/StoryViewerPage";
 import SettingsPage from "./pages/SettingsPage";
 import CallsPage from "./pages/CallsPage";
+import FriendsPage from "./pages/FriendsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,7 @@ const AppRoutes = () => {
       <Route path="/stories/:username" element={<ProtectedRoute><StoryViewerPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/calls" element={<ProtectedRoute><CallsPage /></ProtectedRoute>} />
+      <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
