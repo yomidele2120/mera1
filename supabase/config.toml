@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.agora-credentials]
 verify_jwt = false
+
+[functions.ai-search]
+verify_jwt = false

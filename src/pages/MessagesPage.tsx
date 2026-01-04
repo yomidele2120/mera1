@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, Search, Plus, Sparkles } from "lucide-react";
+import { MessageCircle, Plus, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AISearchBar } from "@/components/search/AISearchBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -209,7 +210,7 @@ const MessagesPage = () => {
   return (
     <MainLayout>
       <div className="animate-fade-up">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h1 className="font-display text-2xl font-bold text-foreground">Messages</h1>
           <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
             <DialogTrigger asChild>
@@ -253,6 +254,11 @@ const MessagesPage = () => {
           </Dialog>
         </div>
 
+        {/* AI Search Bar - Fixed at top */}
+        <div className="sticky top-0 z-20 bg-background pb-4">
+          <AISearchBar />
+        </div>
+
         {/* MERA AI Contact - Always First */}
         <AIContactCard />
 
@@ -265,7 +271,7 @@ const MessagesPage = () => {
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 mt-2">
             {chats.map((chat, index) => (
               <motion.div
                 key={chat.id}
