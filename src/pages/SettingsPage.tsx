@@ -11,10 +11,12 @@ import {
   LogOut,
   Trash2,
   Hash,
+  KeyRound,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { SettingsSection, SettingsItem } from "@/components/settings/SettingsSection";
 import { EditProfileForm } from "@/components/settings/EditProfileForm";
+import { ChangePasswordForm } from "@/components/settings/ChangePasswordForm";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { Switch } from "@/components/ui/switch";
 import { UserNumber } from "@/components/user/UserNumber";
@@ -32,7 +34,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-type SettingsView = "main" | "edit-profile" | "appearance" | "notifications" | "privacy";
+type SettingsView = "main" | "edit-profile" | "change-password" | "appearance" | "notifications" | "privacy";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -62,6 +64,20 @@ const SettingsPage = () => {
             exit={{ opacity: 0, x: -20 }}
           >
             <EditProfileForm />
+          </motion.div>
+        );
+
+      case "change-password":
+        return (
+          <motion.div
+            key="change-password"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <SettingsSection title="Change Password" description="Update your account password">
+              <ChangePasswordForm />
+            </SettingsSection>
           </motion.div>
         );
 
@@ -182,6 +198,12 @@ const SettingsPage = () => {
                 onClick={() => setCurrentView("edit-profile")}
               />
               <SettingsItem
+                icon={<KeyRound className="h-5 w-5" />}
+                label="Change password"
+                description="Update your password"
+                onClick={() => setCurrentView("change-password")}
+              />
+              <SettingsItem
                 icon={<Hash className="h-5 w-5" />}
                 label="Your User ID"
                 description="Use this to let others find you"
@@ -274,6 +296,8 @@ const SettingsPage = () => {
     switch (currentView) {
       case "edit-profile":
         return "Edit Profile";
+      case "change-password":
+        return "Change Password";
       case "appearance":
         return "Appearance";
       case "notifications":
