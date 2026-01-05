@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { MessageCircle, Plus, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { StickyHeader } from "@/components/common/StickyHeader";
+import { PullToRefresh } from "@/components/common/PullToRefresh";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ const MessagesPage = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
 
-  const fetchChats = async () => {
+  const fetchChats = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -121,7 +122,7 @@ const MessagesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchChats();
@@ -145,7 +146,11 @@ const MessagesPage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [fetchChats]);
+
+  const handleRefresh = async () => {
+    await fetchChats();
+  };
 
   const searchUsers = async (query: string) => {
     if (query.length < 2) {
@@ -257,73 +262,75 @@ const MessagesPage = () => {
           }
         />
 
-        <div className="px-4 pt-4">
-          {/* AI Search Bar */}
-          <div className="pb-4">
-            <AISearchBar />
-          </div>
-
-        {/* MERA AI Contact - Always First */}
-        <AIContactCard />
-
-        {chats.length === 0 ? (
-          <div className="card-base p-8 text-center mt-4">
-            <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground mb-4">No messages yet</p>
-            <Button onClick={() => setNewChatOpen(true)} className="btn-primary">
-              Start a conversation
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2 mt-2">
-            {chats.map((chat, index) => (
-              <motion.div
-                key={chat.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-              >
-                <Link
-                  to={`/messages/${chat.id}`}
-                  className="card-base p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="relative">
-                    <UserAvatar
-                      src={chat.otherUser.avatar_url}
-                      fallback={chat.otherUser.username}
-                      size="lg"
-                    />
-                    <OnlineStatusBadge isOnline={getOnlineStatusText(chat.otherUser.last_active_at).isOnline} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-foreground">{chat.otherUser.username}</p>
-                      {chat.lastMessage && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(chat.lastMessage.created_at), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      )}
-                    </div>
-                    {chat.lastMessage && (
-                      <p className="text-sm text-muted-foreground truncate">
-                        {chat.lastMessage.sender_id === user?.id && "You: "}
-                        {chat.lastMessage.text || "Sent media"}
-                      </p>
-                    )}
-                  </div>
-                  {chat.lastMessage &&
-                    !chat.lastMessage.seen &&
-                    chat.lastMessage.sender_id !== user?.id && (
-                      <div className="h-2 w-2 rounded-full gradient-primary" />
-                    )}
-                  </Link>
-                </motion.div>
-              ))}
+        <PullToRefresh onRefresh={handleRefresh} className="min-h-[calc(100dvh-140px)]">
+          <div className="px-4 pt-4">
+            {/* AI Search Bar */}
+            <div className="pb-4">
+              <AISearchBar />
             </div>
-          )}
-        </div>
+
+            {/* MERA AI Contact - Always First */}
+            <AIContactCard />
+
+            {chats.length === 0 ? (
+              <div className="card-base p-8 text-center mt-4">
+                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground mb-4">No messages yet</p>
+                <Button onClick={() => setNewChatOpen(true)} className="btn-primary">
+                  Start a conversation
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2 mt-2">
+                {chats.map((chat, index) => (
+                  <motion.div
+                    key={chat.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
+                    <Link
+                      to={`/messages/${chat.id}`}
+                      className="card-base p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="relative">
+                        <UserAvatar
+                          src={chat.otherUser.avatar_url}
+                          fallback={chat.otherUser.username}
+                          size="lg"
+                        />
+                        <OnlineStatusBadge isOnline={getOnlineStatusText(chat.otherUser.last_active_at).isOnline} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold text-foreground">{chat.otherUser.username}</p>
+                          {chat.lastMessage && (
+                            <p className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(chat.lastMessage.created_at), {
+                                addSuffix: true,
+                              })}
+                            </p>
+                          )}
+                        </div>
+                        {chat.lastMessage && (
+                          <p className="text-sm text-muted-foreground truncate">
+                            {chat.lastMessage.sender_id === user?.id && "You: "}
+                            {chat.lastMessage.text || "Sent media"}
+                          </p>
+                        )}
+                      </div>
+                      {chat.lastMessage &&
+                        !chat.lastMessage.seen &&
+                        chat.lastMessage.sender_id !== user?.id && (
+                          <div className="h-2 w-2 rounded-full gradient-primary" />
+                        )}
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+          </div>
+        </PullToRefresh>
       </div>
     </MainLayout>
   );

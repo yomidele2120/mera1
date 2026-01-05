@@ -30,9 +30,10 @@ interface PostCardProps {
   };
   onLikeToggle?: () => void;
   onCommentClick?: () => void;
+  onMediaClick?: () => void;
 }
 
-export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) => {
+export const PostCard = ({ post, onLikeToggle, onCommentClick, onMediaClick }: PostCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -145,30 +146,32 @@ export const PostCard = ({ post, onLikeToggle, onCommentClick }: PostCardProps) 
       </div>
 
       {/* Content */}
-      <PostContent
-        postType={postType}
-        mediaUrl={post.media_url}
-        textContent={post.text_content}
-        caption={post.caption}
-        onDoubleTap={handleDoubleTap}
-      >
-        {/* Double tap heart animation */}
-        {isLikeAnimating && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1.2, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-          >
+      <div onClick={onMediaClick}>
+        <PostContent
+          postType={postType}
+          mediaUrl={post.media_url}
+          textContent={post.text_content}
+          caption={post.caption}
+          onDoubleTap={handleDoubleTap}
+        >
+          {/* Double tap heart animation */}
+          {isLikeAnimating && (
             <motion.div
-              animate={{ scale: [1.2, 1] }}
-              transition={{ duration: 0.3 }}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1.2, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              <Heart className="h-24 w-24 fill-primary-foreground text-primary-foreground drop-shadow-lg" />
+              <motion.div
+                animate={{ scale: [1.2, 1] }}
+                transition={{ duration: 0.3 }}
+              >
+                <Heart className="h-24 w-24 fill-primary-foreground text-primary-foreground drop-shadow-lg" />
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </PostContent>
+          )}
+        </PostContent>
+      </div>
 
       {/* Actions */}
       <div className="p-4">

@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Bell, Heart, MessageCircle, UserPlus, Phone, PhoneMissed, Video } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
 import { StickyHeader } from "@/components/common/StickyHeader";
+import { PullToRefresh } from "@/components/common/PullToRefresh";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,7 +43,7 @@ const NotificationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -72,9 +73,9 @@ const NotificationsPage = () => {
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
-  };
+  }, [user]);
 
-  const fetchMissedCalls = async () => {
+  const fetchMissedCalls = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -97,13 +98,13 @@ const NotificationsPage = () => {
     } catch (error) {
       console.error("Error fetching missed calls:", error);
     }
-  };
+  }, [user]);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchNotifications(), fetchMissedCalls()]);
     setLoading(false);
-  };
+  }, [fetchNotifications, fetchMissedCalls]);
 
   useEffect(() => {
     fetchAll();
@@ -146,7 +147,11 @@ const NotificationsPage = () => {
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(callChannel);
     };
-  }, [user]);
+  }, [user, fetchAll, fetchNotifications, fetchMissedCalls]);
+
+  const handleRefresh = async () => {
+    await fetchAll();
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -313,33 +318,35 @@ const NotificationsPage = () => {
       <div className="-mx-4 md:mx-0">
         <StickyHeader title="Notifications" />
         
-        <div className="px-4 pt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full mb-4">
-            <TabsTrigger value="all" className="flex-1 gap-2">
-              <Bell className="h-4 w-4" />
-              All
-            </TabsTrigger>
-            <TabsTrigger value="calls" className="flex-1 gap-2">
-              <PhoneMissed className="h-4 w-4" />
-              Missed Calls
-              {missedCalls.length > 0 && (
-                <span className="ml-1 bg-destructive text-destructive-foreground text-xs px-1.5 py-0.5 rounded-full">
-                  {missedCalls.length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+        <PullToRefresh onRefresh={handleRefresh} className="min-h-[calc(100dvh-140px)]">
+          <div className="px-4 pt-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="all" className="flex-1 gap-2">
+                <Bell className="h-4 w-4" />
+                All
+              </TabsTrigger>
+              <TabsTrigger value="calls" className="flex-1 gap-2">
+                <PhoneMissed className="h-4 w-4" />
+                Missed Calls
+                {missedCalls.length > 0 && (
+                  <span className="ml-1 bg-destructive text-destructive-foreground text-xs px-1.5 py-0.5 rounded-full">
+                    {missedCalls.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="all">
-            {renderNotificationsList()}
-          </TabsContent>
-
-            <TabsContent value="calls">
-              {renderMissedCallsList()}
+            <TabsContent value="all">
+              {renderNotificationsList()}
             </TabsContent>
-          </Tabs>
-        </div>
+
+              <TabsContent value="calls">
+                {renderMissedCallsList()}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </PullToRefresh>
       </div>
     </MainLayout>
   );
