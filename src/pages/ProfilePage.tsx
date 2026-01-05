@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Grid3X3, Settings, MessageCircle, UserPlus, UserCheck, CalendarDays, MoreVertical, Play, Ban, Flag, ArrowLeft } from "lucide-react";
+import { Grid3X3, Settings, MessageCircle, UserPlus, UserCheck, CalendarDays, MoreVertical, Play, Ban, Flag } from "lucide-react";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Button } from "@/components/ui/button";
@@ -223,27 +224,19 @@ const ProfilePage = () => {
 
   return (
     <MainLayout>
-      <div className="animate-fade-up">
-        {/* Mobile header with settings for own profile or back button for others */}
-        <div className="flex items-center justify-between mb-4 md:hidden">
-          {!isOwnProfile ? (
-            <button 
-              onClick={() => navigate(-1)} 
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span>Back</span>
-            </button>
-          ) : (
-            <div />
-          )}
-          {isOwnProfile && (
-            <Link to="/settings" className="p-2 rounded-full hover:bg-muted transition-colors ml-auto">
+      <div className="-mx-4 md:mx-0">
+        {/* Sticky Header */}
+        <StickyHeader 
+          title={isOwnProfile ? "Profile" : profile.username}
+          showBackButton={!isOwnProfile}
+          rightAction={isOwnProfile ? (
+            <Link to="/settings" className="p-2 rounded-full hover:bg-muted transition-colors">
               <Settings className="h-5 w-5 text-muted-foreground" />
             </Link>
-          )}
-        </div>
-        
+          ) : undefined}
+        />
+
+        <div className="px-4 pt-4 animate-fade-up">
         {/* Profile Header */}
         <div className="card-base p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -398,6 +391,7 @@ const ProfilePage = () => {
             ))}
           </div>
         )}
+        </div>
       </div>
     </MainLayout>
   );

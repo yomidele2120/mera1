@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search, Sparkles, User, ArrowLeft, Loader2, X } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -140,20 +141,11 @@ const SearchPage = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-3xl mx-auto p-4 space-y-4">
-        <div className="flex items-center gap-3 mb-4">
-          <Link to="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Search
-          </h1>
-        </div>
+      <div className="-mx-4 md:mx-0">
+        <StickyHeader title="Search" />
 
-        <form onSubmit={handleSearch} className="sticky top-0 z-10 bg-background pb-4">
+        <div className="px-4 pt-4 space-y-4">
+          <form onSubmit={handleSearch}>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -259,9 +251,10 @@ const SearchPage = () => {
                   </Link>
                 </motion.div>
               ))
-            )}
-          </TabsContent>
-        </Tabs>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </MainLayout>
   );

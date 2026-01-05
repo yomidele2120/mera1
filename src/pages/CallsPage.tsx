@@ -5,7 +5,7 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { useCallHistory, CallLog } from "@/hooks/useCalling";
 import { CallHistoryItem } from "@/components/call/CallHistoryItem";
 import { useAuth } from "@/contexts/AuthContext";
-import { BackButton } from "@/components/common/BackButton";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { supabase } from "@/integrations/supabase/client";
 
 const CallsPage = () => {
@@ -45,15 +45,12 @@ const CallsPage = () => {
 
   return (
     <MainLayout>
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <BackButton />
-          <h1 className="text-2xl font-bold text-foreground">Calls</h1>
-        </div>
+      <div className="-mx-4 md:mx-0">
+        <StickyHeader title="Calls" />
 
-        {/* Call History */}
-        {calls.length === 0 ? (
+        <div className="px-4 pt-4 space-y-4">
+          {/* Call History */}
+          {calls.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Phone className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium text-foreground">No calls yet</h3>
@@ -62,17 +59,18 @@ const CallsPage = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-1">
-            {calls.map((call) => (
-              <CallHistoryItem
-                key={call.id}
-                call={call}
-                currentUserId={user?.id || ''}
-                onClick={() => handleCallClick(call)}
-              />
-            ))}
-          </div>
-        )}
+            <div className="space-y-1">
+              {calls.map((call) => (
+                <CallHistoryItem
+                  key={call.id}
+                  call={call}
+                  currentUserId={user?.id || ''}
+                  onClick={() => handleCallClick(call)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </MainLayout>
   );

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, Phone, UserPlus, Search, MoreVertical, Pencil, Trash2, Upload, UserCheck, Clock, Send } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -381,45 +382,45 @@ const FriendsPage = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-2xl mx-auto p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Users className="h-6 w-6" />
-            Friends
-          </h1>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add Contact by ID</DialogTitle>
-                </DialogHeader>
-                <DialPad onContactAdded={fetchFriendsAndContacts} />
-              </DialogContent>
-            </Dialog>
+      <div className="-mx-4 md:mx-0">
+        <StickyHeader 
+          title="Friends"
+          rightAction={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add Contact by ID</DialogTitle>
+                  </DialogHeader>
+                  <DialPad onContactAdded={fetchFriendsAndContacts} />
+                </DialogContent>
+              </Dialog>
+            </div>
+          }
+        />
+
+        <div className="px-4 pt-4 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search friends..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search friends..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        <Tabs defaultValue="friends" className="w-full">
+          <Tabs defaultValue="friends" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="friends" className="flex items-center gap-1">
               <UserCheck className="h-4 w-4" />
@@ -526,6 +527,7 @@ const FriendsPage = () => {
             </AnimatePresence>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
 
       {editingContact && (
