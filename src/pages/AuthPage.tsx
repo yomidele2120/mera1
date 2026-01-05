@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Eye, EyeOff, Mail, Lock, User, ArrowRight, ArrowLeft, 
-  Sparkles, Calendar, Users, Check, PartyPopper 
+  Sparkles, Calendar, Users, Check, PartyPopper, Shield
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import authHero from "@/assets/auth-hero.jpg";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 type AuthMode = "login" | "signup" | "forgot";
-type SignupStep = 1 | 2 | 3 | 4;
+type SignupStep = 1 | 2 | 3 | 4 | 5; // Added step 2 for email verification
 
 // Validation schemas
 const step1Schema = z.object({
@@ -24,7 +26,7 @@ const step1Schema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-const step2Schema = z.object({
+const step3Schema = z.object({
   dateOfBirth: z.string().refine((val) => {
     const date = new Date(val);
     const today = new Date();
@@ -34,7 +36,7 @@ const step2Schema = z.object({
   gender: z.string().min(1, "Please select a gender"),
 });
 
-const step3Schema = z.object({
+const step4Schema = z.object({
   username: z.string()
     .min(3, "Username must be at least 3 characters")
     .max(30, "Username must be less than 30 characters")
@@ -57,6 +59,13 @@ export const AuthPage = () => {
   const [userNumber, setUserNumber] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resetSent, setResetSent] = useState(false);
+  
+  // Email verification state
+  const [verificationCode, setVerificationCode] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [debugOtp, setDebugOtp] = useState<string | null>(null);
 
   const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
@@ -67,10 +76,10 @@ export const AuthPage = () => {
     try {
       if (step === 1) {
         step1Schema.parse({ fullName, email, password });
-      } else if (step === 2) {
-        step2Schema.parse({ dateOfBirth, gender });
       } else if (step === 3) {
-        step3Schema.parse({ username });
+        step3Schema.parse({ dateOfBirth, gender });
+      } else if (step === 4) {
+        step4Schema.parse({ username });
       }
       return true;
     } catch (error) {
@@ -87,18 +96,163 @@ export const AuthPage = () => {
     }
   };
 
+  const sendVerificationCode = async () => {
+    if (!validateStep(1)) return;
+    
+    setSendingCode(true);
+    try {
+      const response = await supabase.functions.invoke("send-signup-verification", {
+        body: { email },
+      });
+
+      if (response.error) {
+        toast({
+          title: "Error",
+          description: response.error.message || "Failed to send verification code",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const data = response.data;
+      
+      if (data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Store debug OTP for development
+      if (data.debug_otp) {
+        setDebugOtp(data.debug_otp);
+      }
+
+      toast({
+        title: "Code sent!",
+        description: "Please check your email for the verification code",
+      });
+      
+      setSignupStep(2);
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const verifyEmailCode = async () => {
+    if (verificationCode.length !== 6) {
+      setErrors({ code: "Please enter the 6-digit code" });
+      return;
+    }
+
+    setVerifyingCode(true);
+    try {
+      const response = await supabase.functions.invoke("verify-signup-code", {
+        body: { email, code: verificationCode },
+      });
+
+      if (response.error) {
+        toast({
+          title: "Error",
+          description: response.error.message || "Failed to verify code",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const data = response.data;
+      
+      if (data.error) {
+        setErrors({ code: data.error });
+        toast({
+          title: "Invalid code",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.verified) {
+        setEmailVerified(true);
+        toast({
+          title: "Email verified!",
+          description: "You can now continue with your registration",
+        });
+        setSignupStep(3);
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
+  const resendVerificationCode = async () => {
+    setSendingCode(true);
+    try {
+      const response = await supabase.functions.invoke("send-signup-verification", {
+        body: { email },
+      });
+
+      if (response.data?.debug_otp) {
+        setDebugOtp(response.data.debug_otp);
+      }
+
+      toast({
+        title: "Code resent!",
+        description: "Please check your email for the new verification code",
+      });
+      setVerificationCode("");
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to resend code",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
   const handleNextStep = () => {
-    if (validateStep(signupStep)) {
-      setSignupStep((prev) => Math.min(prev + 1, 4) as SignupStep);
+    if (signupStep === 1) {
+      sendVerificationCode();
+    } else if (validateStep(signupStep)) {
+      setSignupStep((prev) => Math.min(prev + 1, 5) as SignupStep);
     }
   };
 
   const handlePrevStep = () => {
+    if (signupStep === 2) {
+      setVerificationCode("");
+      setEmailVerified(false);
+    }
     setSignupStep((prev) => Math.max(prev - 1, 1) as SignupStep);
   };
 
   const handleSignup = async () => {
-    if (!validateStep(3)) return;
+    if (!emailVerified) {
+      toast({
+        title: "Email not verified",
+        description: "Please verify your email first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!validateStep(4)) return;
     
     setLoading(true);
     try {
@@ -123,7 +277,7 @@ export const AuthPage = () => {
 
       // Show success step with user number
       setUserNumber(newUserNumber || null);
-      setSignupStep(4);
+      setSignupStep(5);
     } catch (err) {
       toast({
         title: "Error",
@@ -177,6 +331,9 @@ export const AuthPage = () => {
     setErrors({});
     setUserNumber(null);
     setResetSent(false);
+    setVerificationCode("");
+    setEmailVerified(false);
+    setDebugOtp(null);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -215,10 +372,18 @@ export const AuthPage = () => {
 
   const handleContinue = () => {
     toast({
-      title: "Check your email",
-      description: "Please verify your email to complete registration",
+      title: "Welcome to Mera!",
+      description: "Your account is ready to use",
     });
     navigate("/");
+  };
+
+  // Progress indicator helper
+  const getProgressStep = () => {
+    if (signupStep <= 2) return 1;
+    if (signupStep === 3) return 2;
+    if (signupStep === 4) return 3;
+    return 3;
   };
 
   // Render signup steps
@@ -239,7 +404,7 @@ export const AuthPage = () => {
                   <div
                     key={step}
                     className={`h-2 w-8 rounded-full transition-colors ${
-                      step <= signupStep ? "gradient-primary" : "bg-muted"
+                      step <= getProgressStep() ? "gradient-primary" : "bg-muted"
                     }`}
                   />
                 ))}
@@ -248,7 +413,7 @@ export const AuthPage = () => {
                 Let's get started
               </h2>
               <p className="text-muted-foreground">
-                Enter your name and email
+                Enter your details to create an account
               </p>
             </div>
 
@@ -312,10 +477,22 @@ export const AuthPage = () => {
             <Button
               type="button"
               onClick={handleNextStep}
+              disabled={sendingCode}
               className="btn-primary w-full h-12 text-base"
             >
-              Continue
-              <ArrowRight className="h-5 w-5 ml-2" />
+              {sendingCode ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <Sparkles className="h-5 w-5" />
+                </motion.div>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </>
+              )}
             </Button>
           </motion.div>
         );
@@ -335,7 +512,118 @@ export const AuthPage = () => {
                   <div
                     key={step}
                     className={`h-2 w-8 rounded-full transition-colors ${
-                      step <= signupStep ? "gradient-primary" : "bg-muted"
+                      step <= getProgressStep() ? "gradient-primary" : "bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4"
+              >
+                <Shield className="h-8 w-8 text-primary" />
+              </motion.div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-2">
+                Verify your email
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                We've sent a 6-digit code to <br />
+                <span className="font-medium text-foreground">{email}</span>
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-4">
+              <InputOTP
+                maxLength={6}
+                value={verificationCode}
+                onChange={(value) => {
+                  setVerificationCode(value);
+                  setErrors({});
+                }}
+              >
+                <InputOTPGroup className="gap-2">
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+              
+              {errors.code && (
+                <p className="text-sm text-destructive">{errors.code}</p>
+              )}
+
+              {/* Debug OTP display for development */}
+              {debugOtp && (
+                <div className="bg-accent/50 rounded-lg px-4 py-2 text-center">
+                  <p className="text-xs text-muted-foreground">Development code:</p>
+                  <p className="font-mono font-bold text-primary">{debugOtp}</p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={resendVerificationCode}
+                disabled={sendingCode}
+                className="text-sm text-primary hover:underline disabled:opacity-50"
+              >
+                {sendingCode ? "Sending..." : "Didn't receive a code? Resend"}
+              </button>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrevStep}
+                className="flex-1 h-12"
+              >
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={verifyEmailCode}
+                disabled={verifyingCode || verificationCode.length !== 6}
+                className="btn-primary flex-1 h-12"
+              >
+                {verifyingCode ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Sparkles className="h-5 w-5" />
+                  </motion.div>
+                ) : (
+                  <>
+                    Verify
+                    <Check className="h-5 w-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        );
+
+      case 3:
+        return (
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-4"
+          >
+            <div className="mb-6 text-center">
+              <div className="flex justify-center gap-2 mb-4">
+                {[1, 2, 3].map((step) => (
+                  <div
+                    key={step}
+                    className={`h-2 w-8 rounded-full transition-colors ${
+                      step <= getProgressStep() ? "gradient-primary" : "bg-muted"
                     }`}
                   />
                 ))}
@@ -416,7 +704,11 @@ export const AuthPage = () => {
               </Button>
               <Button
                 type="button"
-                onClick={handleNextStep}
+                onClick={() => {
+                  if (validateStep(3)) {
+                    setSignupStep(4);
+                  }
+                }}
                 className="btn-primary flex-1 h-12"
               >
                 Continue
@@ -426,10 +718,10 @@ export const AuthPage = () => {
           </motion.div>
         );
 
-      case 3:
+      case 4:
         return (
           <motion.div
-            key="step3"
+            key="step4"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
@@ -441,7 +733,7 @@ export const AuthPage = () => {
                   <div
                     key={step}
                     className={`h-2 w-8 rounded-full transition-colors ${
-                      step <= signupStep ? "gradient-primary" : "bg-muted"
+                      step <= getProgressStep() ? "gradient-primary" : "bg-muted"
                     }`}
                   />
                 ))}
@@ -514,10 +806,10 @@ export const AuthPage = () => {
           </motion.div>
         );
 
-      case 4:
+      case 5:
         return (
           <motion.div
-            key="step4"
+            key="step5"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-6"
@@ -556,12 +848,12 @@ export const AuthPage = () => {
             )}
 
             <div className="bg-accent/50 rounded-xl p-4 mb-6">
-              <Mail className="h-6 w-6 text-primary mx-auto mb-2" />
+              <Check className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-sm text-foreground font-medium">
-                Please check your email
+                Email verified
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                We've sent a confirmation link to {email}
+                {email}
               </p>
             </div>
 
@@ -570,7 +862,7 @@ export const AuthPage = () => {
               onClick={handleContinue}
               className="btn-primary w-full h-12 text-base"
             >
-              Continue
+              Get Started
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
           </motion.div>
@@ -579,7 +871,7 @@ export const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <div className="min-h-screen min-h-[100dvh] grid lg:grid-cols-2 overflow-x-hidden">
       {/* Left side - Hero Image */}
       <div className="hidden lg:block relative overflow-hidden">
         <motion.div
@@ -639,7 +931,7 @@ export const AuthPage = () => {
       </div>
 
       {/* Right side - Auth Form */}
-      <div className="flex items-center justify-center p-6 lg:p-12 gradient-hero">
+      <div className="flex items-center justify-center p-4 sm:p-6 lg:p-12 gradient-hero overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -658,7 +950,7 @@ export const AuthPage = () => {
             <span className="font-display text-3xl font-bold text-gradient">mera</span>
           </motion.div>
 
-          <div className="card-base p-8 lg:p-10">
+          <div className="card-base p-6 sm:p-8 lg:p-10">
             <AnimatePresence mode="wait">
               {mode === "login" ? (
                 <motion.div
@@ -839,7 +1131,7 @@ export const AuthPage = () => {
               )}
             </AnimatePresence>
 
-            {(mode === "login" || (mode === "signup" && signupStep < 4)) && (
+            {(mode === "login" || (mode === "signup" && signupStep < 5)) && (
               <div className="mt-6 text-center">
                 <p className="text-sm text-muted-foreground">
                   {mode === "login" ? "Don't have an account?" : "Already have an account?"}
@@ -855,7 +1147,7 @@ export const AuthPage = () => {
             )}
           </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-6 text-center text-xs text-muted-foreground px-4">
             By continuing, you agree to our Terms of Service and Privacy Policy
           </p>
         </motion.div>

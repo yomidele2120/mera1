@@ -133,14 +133,9 @@ const FeedPage = () => {
 
   return (
     <MainLayout>
-      <div className="animate-fade-up">
-        {/* Mobile Header */}
-        <div className="flex items-center justify-between mb-4 md:hidden">
-          <h1 className="font-display text-2xl font-bold text-gradient">mera</h1>
-        </div>
-
+      <div className="animate-fade-up w-full">
         {/* AI Search Bar - Fixed at top */}
-        <div className="sticky top-0 z-20 bg-background pb-4">
+        <div className="sticky top-0 z-20 bg-background pb-4 -mx-4 px-4">
           <AISearchBar />
         </div>
 
