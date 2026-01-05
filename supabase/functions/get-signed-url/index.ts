@@ -15,13 +15,39 @@ serve(async (req) => {
   try {
     // Get auth token from request
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       console.error('No authorization header provided');
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    // Create client with user's auth
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+
+    // Validate JWT using getClaims
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('Invalid JWT:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log('User authenticated:', userId);
 
     // Parse request body
     const { filePath, chatId } = await req.json();
@@ -35,31 +61,6 @@ serve(async (req) => {
     }
 
     console.log('Processing signed URL request:', { filePath, chatId });
-
-    // Create Supabase client with user's JWT
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-
-    // Create client with user's auth to verify they're part of the chat
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader }
-      }
-    });
-
-    // Get the user's ID from the JWT
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) {
-      console.error('Failed to get user:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authorization' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('User authenticated:', user.id);
-
     // Verify user is part of this chat
     const { data: chat, error: chatError } = await userClient
       .from('chats')
@@ -76,8 +77,8 @@ serve(async (req) => {
     }
 
     // Check if user is part of the chat
-    if (chat.user1_id !== user.id && chat.user2_id !== user.id) {
-      console.error('User not part of chat:', { userId: user.id, chat });
+    if (chat.user1_id !== userId && chat.user2_id !== userId) {
+      console.error('User not part of chat:', { userId, chat });
       return new Response(
         JSON.stringify({ error: 'Access denied to this chat' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

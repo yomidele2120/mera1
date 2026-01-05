@@ -1,7 +1,7 @@
 project_id = "rvmeuepkxmfosddxuoth"
 
 [functions.get-signed-url]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-chat]
 verify_jwt = false
