@@ -4,7 +4,7 @@ import { Bell, Heart, MessageCircle, UserPlus, Phone, PhoneMissed, Video } from 
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserAvatar } from "@/components/common/Avatar";
-import { BackButton } from "@/components/common/BackButton";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -310,13 +310,11 @@ const NotificationsPage = () => {
 
   return (
     <MainLayout>
-      <div className="animate-fade-up">
-        <div className="flex items-center gap-3 mb-6">
-          <BackButton className="md:hidden" />
-          <h1 className="font-display text-2xl font-bold text-foreground">Notifications</h1>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <div className="-mx-4 md:mx-0">
+        <StickyHeader title="Notifications" />
+        
+        <div className="px-4 pt-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full mb-4">
             <TabsTrigger value="all" className="flex-1 gap-2">
               <Bell className="h-4 w-4" />
@@ -337,10 +335,11 @@ const NotificationsPage = () => {
             {renderNotificationsList()}
           </TabsContent>
 
-          <TabsContent value="calls">
-            {renderMissedCallsList()}
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="calls">
+              {renderMissedCallsList()}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </MainLayout>
   );

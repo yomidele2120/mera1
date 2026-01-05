@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { MessageCircle, Plus, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -209,10 +210,11 @@ const MessagesPage = () => {
 
   return (
     <MainLayout>
-      <div className="animate-fade-up">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="font-display text-2xl font-bold text-foreground">Messages</h1>
-          <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
+      <div className="-mx-4 md:mx-0">
+        <StickyHeader 
+          title="Messages" 
+          rightAction={
+            <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="btn-primary">
                 <Plus className="h-4 w-4 mr-1" />
@@ -250,14 +252,16 @@ const MessagesPage = () => {
                   ))}
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
-        {/* AI Search Bar - Fixed at top */}
-        <div className="sticky top-0 z-20 bg-background pb-4">
-          <AISearchBar />
-        </div>
+        <div className="px-4 pt-4">
+          {/* AI Search Bar */}
+          <div className="pb-4">
+            <AISearchBar />
+          </div>
 
         {/* MERA AI Contact - Always First */}
         <AIContactCard />
@@ -314,11 +318,12 @@ const MessagesPage = () => {
                     chat.lastMessage.sender_id !== user?.id && (
                       <div className="h-2 w-2 rounded-full gradient-primary" />
                     )}
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        )}
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </MainLayout>
   );

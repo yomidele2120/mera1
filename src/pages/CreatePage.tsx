@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Image, X, Sparkles, Send, Type, Video, Mic, Minus, Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -484,14 +485,15 @@ const CreatePage = () => {
 
   return (
     <MainLayout>
-      <div className="animate-fade-up">
-        <h1 className="font-display text-2xl font-bold text-foreground mb-6">Create</h1>
+      <div className="-mx-4 md:mx-0">
+        <StickyHeader title="Create" />
 
-        <Tabs value={uploadType} onValueChange={(v) => setUploadType(v as UploadType)} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="post">Post</TabsTrigger>
-            <TabsTrigger value="story">Story</TabsTrigger>
-          </TabsList>
+        <div className="px-4 pt-4 animate-fade-up">
+          <Tabs value={uploadType} onValueChange={(v) => setUploadType(v as UploadType)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="post">Post</TabsTrigger>
+              <TabsTrigger value="story">Story</TabsTrigger>
+            </TabsList>
 
           <TabsContent value={uploadType} className="mt-0">
             <div className="card-base p-6 space-y-6">
@@ -865,6 +867,7 @@ const CreatePage = () => {
             />
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </MainLayout>
   );

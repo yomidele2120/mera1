@@ -14,6 +14,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { StickyHeader } from "@/components/common/StickyHeader";
 import { SettingsSection, SettingsItem } from "@/components/settings/SettingsSection";
 import { EditProfileForm } from "@/components/settings/EditProfileForm";
 import { SecurePasswordReset } from "@/components/settings/SecurePasswordReset";
@@ -309,18 +310,14 @@ const SettingsPage = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-xl mx-auto -mx-4 md:mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 p-4 border-b border-border sticky top-0 bg-background z-10">
-          <button
-            onClick={() =>
-              currentView === "main" ? navigate(-1) : setCurrentView("main")
-            }
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <h1 className="font-semibold text-lg">{getTitle()}</h1>
-        </div>
+        <StickyHeader
+          title={getTitle()}
+          onBack={() =>
+            currentView === "main" ? navigate(-1) : setCurrentView("main")
+          }
+        />
 
         {/* Content */}
         <div className="p-4">
