@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PostCard } from "@/components/post/PostCard";
 import { PostDetailModal } from "@/components/post/PostDetailModal";
 import { StoriesBar } from "@/components/story/StoriesBar";
 import { AISearchBar } from "@/components/search/AISearchBar";
+import { PullToRefresh } from "@/components/common/PullToRefresh";
+import { FullScreenMediaViewer } from "@/components/media/FullScreenMediaViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -34,14 +36,32 @@ interface StoryUser {
   hasUnseenStory: boolean;
 }
 
+interface MediaItem {
+  id: string;
+  type: 'image' | 'video' | 'audio';
+  url: string;
+  caption?: string | null;
+  user?: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+  };
+  createdAt?: string;
+  likesCount?: number;
+  commentsCount?: number;
+  isLiked?: boolean;
+  postId?: string;
+}
+
 const FeedPage = () => {
   const { user, profile } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [storyUsers, setStoryUsers] = useState<StoryUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [fullScreenMedia, setFullScreenMedia] = useState<MediaItem | null>(null);
 
-  const fetchFeed = async () => {
+  const fetchFeed = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -111,14 +131,42 @@ const FeedPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchFeed();
-  }, [user]);
+  }, [fetchFeed]);
+
+  const handleRefresh = async () => {
+    await fetchFeed();
+  };
 
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
+  };
+
+  const handleMediaClick = (post: Post) => {
+    if (!post.media_url || post.post_type === 'text') return;
+    
+    const mediaType = post.post_type === 'video' ? 'video' : 
+                      post.post_type === 'audio' ? 'audio' : 'image';
+    
+    setFullScreenMedia({
+      id: post.id,
+      type: mediaType,
+      url: post.media_url,
+      caption: post.caption,
+      user: {
+        id: post.user_id,
+        username: post.profiles.username,
+        avatar_url: post.profiles.avatar_url,
+      },
+      createdAt: post.created_at,
+      likesCount: post.likes?.length || 0,
+      commentsCount: post.comments?.length || 0,
+      isLiked: post.likes?.some((like) => like.user_id === user?.id) ?? false,
+      postId: post.id,
+    });
   };
 
   if (loading) {
@@ -133,50 +181,53 @@ const FeedPage = () => {
 
   return (
     <MainLayout>
-      <div className="animate-fade-up w-full">
-        {/* AI Search Bar - Fixed at top */}
-        <div className="sticky top-0 z-20 bg-background pb-4 -mx-4 px-4">
-          <AISearchBar />
-        </div>
-
-        {/* Stories */}
-        {storyUsers.length > 0 && <StoriesBar stories={storyUsers} />}
-
-        {/* Posts */}
-        {posts.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="card-base p-8 text-center"
-          >
-            <div className="flex flex-col items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                <ImageOff className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground mb-1">No posts yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Follow people to see their posts in your feed
-                </p>
-                <Link to="/search" className="btn-primary px-6 py-2 text-sm">
-                  Find people to follow
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <div className="space-y-6">
-            {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onLikeToggle={fetchFeed}
-                onCommentClick={() => handlePostClick(post)}
-              />
-            ))}
+      <PullToRefresh onRefresh={handleRefresh} className="min-h-[calc(100dvh-80px)]">
+        <div className="animate-fade-up w-full">
+          {/* AI Search Bar - Fixed at top */}
+          <div className="sticky top-0 z-20 bg-background pb-4 -mx-4 px-4">
+            <AISearchBar />
           </div>
-        )}
-      </div>
+
+          {/* Stories */}
+          {storyUsers.length > 0 && <StoriesBar stories={storyUsers} />}
+
+          {/* Posts */}
+          {posts.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="card-base p-8 text-center"
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                  <ImageOff className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">No posts yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Follow people to see their posts in your feed
+                  </p>
+                  <Link to="/search" className="btn-primary px-6 py-2 text-sm">
+                    Find people to follow
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="space-y-6">
+              {posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onLikeToggle={fetchFeed}
+                  onCommentClick={() => handlePostClick(post)}
+                  onMediaClick={() => handleMediaClick(post)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </PullToRefresh>
 
       {/* Post Detail Modal */}
       <PostDetailModal
@@ -184,6 +235,23 @@ const FeedPage = () => {
         isOpen={!!selectedPost}
         onClose={() => setSelectedPost(null)}
         onLikeToggle={fetchFeed}
+      />
+
+      {/* Full Screen Media Viewer */}
+      <FullScreenMediaViewer
+        media={fullScreenMedia}
+        isOpen={!!fullScreenMedia}
+        onClose={() => setFullScreenMedia(null)}
+        onLike={() => fetchFeed()}
+        onComment={() => {
+          if (fullScreenMedia) {
+            const post = posts.find(p => p.id === fullScreenMedia.postId);
+            if (post) {
+              setFullScreenMedia(null);
+              setSelectedPost(post);
+            }
+          }
+        }}
       />
     </MainLayout>
   );
