@@ -105,21 +105,14 @@ export const AuthPage = () => {
         body: { email },
       });
 
-      if (response.error) {
-        toast({
-          title: "Error",
-          description: response.error.message || "Failed to send verification code",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const data = response.data;
       
-      if (data.error) {
+      // Check for errors - could be in response.error or data.error
+      const errorMessage = response.error?.message || data?.error;
+      if (errorMessage) {
         toast({
           title: "Error",
-          description: data.error,
+          description: errorMessage,
           variant: "destructive",
         });
         return;
