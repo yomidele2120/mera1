@@ -87,7 +87,7 @@ const handler = async (req: Request): Promise<Response> => {
       const resend = new Resend(resendApiKey);
       
       const { error: emailError } = await resend.emails.send({
-        from: "Mera <onboarding@resend.dev>",
+        from: "Mera <noreply@mera.app>",
         to: [email],
         subject: "Your Mera Verification Code",
         html: `
