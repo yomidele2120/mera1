@@ -34,15 +34,22 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if email already exists
+    // Check if email already exists with a confirmed account
     const { data: userData } = await supabase.auth.admin.listUsers();
     const existingUser = userData?.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
     
-    if (existingUser) {
+    // Only block if user exists AND has confirmed their email (completed signup)
+    if (existingUser && existingUser.email_confirmed_at) {
       return new Response(
-        JSON.stringify({ error: "An account with this email already exists" }),
+        JSON.stringify({ error: "An account with this email already exists. Please login instead." }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
+    }
+    
+    // If user exists but never confirmed, delete the incomplete account to allow fresh signup
+    if (existingUser && !existingUser.email_confirmed_at) {
+      console.log(`Deleting unconfirmed user ${existingUser.id} to allow fresh signup`);
+      await supabase.auth.admin.deleteUser(existingUser.id);
     }
 
     // Generate OTP
