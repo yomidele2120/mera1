@@ -55,40 +55,29 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate OTP
     const otp = generateOTP();
     
-    // Store OTP in a temporary table (using password_reset_codes for simplicity)
-    // We'll use a special user_id for signup verification
+    // Delete any existing codes for this email first
+    await supabase
+      .from("signup_verification_codes")
+      .delete()
+      .eq("email", email.toLowerCase());
+    
+    // Store OTP in signup_verification_codes table
     const { error: insertError } = await supabase
-      .from("password_reset_codes")
-      .upsert({
-        user_id: "00000000-0000-0000-0000-000000000000", // Placeholder for signup
+      .from("signup_verification_codes")
+      .insert({
         email: email.toLowerCase(),
         code: otp,
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes
         used: false,
         attempts: 0,
-      }, { 
-        onConflict: 'email',
-        ignoreDuplicates: false 
       });
 
     if (insertError) {
       console.error("Error storing OTP:", insertError);
-      // Try insert without upsert
-      const { error: insertError2 } = await supabase
-        .from("password_reset_codes")
-        .insert({
-          user_id: "00000000-0000-0000-0000-000000000000",
-          email: email.toLowerCase(),
-          code: otp,
-        });
-      
-      if (insertError2) {
-        console.error("Error on second attempt:", insertError2);
-        return new Response(
-          JSON.stringify({ error: "Failed to generate verification code" }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
+      return new Response(
+        JSON.stringify({ error: "Failed to generate verification code" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     // Log the OTP for development (in production, integrate with email service)

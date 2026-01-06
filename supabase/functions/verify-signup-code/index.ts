@@ -33,10 +33,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Find the verification code
     const { data: codeData, error: fetchError } = await supabase
-      .from("password_reset_codes")
+      .from("signup_verification_codes")
       .select("*")
       .eq("email", email.toLowerCase())
-      .eq("code", code)
       .eq("used", false)
       .gte("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
@@ -52,13 +51,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!codeData) {
-      // Increment attempts for security
-      await supabase
-        .from("password_reset_codes")
-        .update({ attempts: supabase.rpc("increment_attempts") })
-        .eq("email", email.toLowerCase())
-        .eq("used", false);
-
       return new Response(
         JSON.stringify({ error: "Invalid or expired verification code" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -73,9 +65,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Check if code matches
+    if (codeData.code !== code) {
+      // Increment attempts
+      await supabase
+        .from("signup_verification_codes")
+        .update({ attempts: codeData.attempts + 1 })
+        .eq("id", codeData.id);
+
+      return new Response(
+        JSON.stringify({ error: "Invalid verification code" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Mark code as used
     await supabase
-      .from("password_reset_codes")
+      .from("signup_verification_codes")
       .update({ used: true })
       .eq("id", codeData.id);
 
