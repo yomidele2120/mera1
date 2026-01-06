@@ -37,7 +37,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
-  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -181,7 +181,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const updatePassword = async (newPassword: string) => {
+  const updatePassword = async (currentPassword: string, newPassword: string) => {
+    // First verify the current password by re-authenticating
+    const userEmail = user?.email;
+    if (!userEmail) {
+      return { error: new Error("No user email found") };
+    }
+
+    // Try to sign in with current password to verify it
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: currentPassword,
+    });
+
+    if (verifyError) {
+      return { error: new Error("Current password is incorrect") };
+    }
+
+    // Now update to the new password
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });

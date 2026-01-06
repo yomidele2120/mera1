@@ -9,16 +9,22 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
 const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
   newPassword: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).refine((data) => data.currentPassword !== data.newPassword, {
+  message: "New password must be different from current password",
+  path: ["newPassword"],
 });
 
 export const ChangePasswordForm = () => {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,7 +38,7 @@ export const ChangePasswordForm = () => {
     setErrors({});
 
     try {
-      passwordSchema.parse({ newPassword, confirmPassword });
+      passwordSchema.parse({ currentPassword, newPassword, confirmPassword });
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
@@ -48,7 +54,7 @@ export const ChangePasswordForm = () => {
 
     setLoading(true);
     try {
-      const { error } = await updatePassword(newPassword);
+      const { error } = await updatePassword(currentPassword, newPassword);
       if (error) {
         toast({
           title: "Error",
@@ -60,6 +66,7 @@ export const ChangePasswordForm = () => {
           title: "Password updated",
           description: "Your password has been changed successfully",
         });
+        setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       }
@@ -77,6 +84,33 @@ export const ChangePasswordForm = () => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
+        <div>
+          <Label htmlFor="currentPassword" className="text-sm font-medium mb-2 block">
+            Current Password
+          </Label>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="currentPassword"
+              type={showCurrentPassword ? "text" : "password"}
+              placeholder="Enter current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="pl-12 pr-12 input-field"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
+          {errors.currentPassword && (
+            <p className="text-sm text-destructive mt-1">{errors.currentPassword}</p>
+          )}
+        </div>
+
         <div>
           <Label htmlFor="newPassword" className="text-sm font-medium mb-2 block">
             New Password
@@ -106,7 +140,7 @@ export const ChangePasswordForm = () => {
 
         <div>
           <Label htmlFor="confirmPassword" className="text-sm font-medium mb-2 block">
-            Confirm Password
+            Confirm New Password
           </Label>
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
@@ -134,7 +168,7 @@ export const ChangePasswordForm = () => {
 
       <Button
         type="submit"
-        disabled={loading || !newPassword || !confirmPassword}
+        disabled={loading || !currentPassword || !newPassword || !confirmPassword}
         className="btn-primary w-full h-12"
       >
         {loading ? (
