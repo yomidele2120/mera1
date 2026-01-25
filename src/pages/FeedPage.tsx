@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { PostCard } from "@/components/post/PostCard";
+import { FeedPostCard } from "@/components/post/FeedPostCard";
 import { PostDetailModal } from "@/components/post/PostDetailModal";
-import { StoriesBar } from "@/components/story/StoriesBar";
+import { FeedStoriesBar } from "@/components/story/FeedStoriesBar";
 import { AISearchBar } from "@/components/search/AISearchBar";
 import { PullToRefresh } from "@/components/common/PullToRefresh";
 import { FullScreenMediaViewer } from "@/components/media/FullScreenMediaViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { ImageOff } from "lucide-react";
+import { ImageOff, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface Post {
@@ -18,6 +18,7 @@ interface Post {
   user_id: string;
   caption: string | null;
   media_url: string | null;
+  media_urls?: string[] | null;
   text_content: string | null;
   post_type: string;
   created_at: string;
@@ -54,7 +55,7 @@ interface MediaItem {
 }
 
 const FeedPage = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [storyUsers, setStoryUsers] = useState<StoryUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +87,7 @@ const FeedPage = () => {
           user_id,
           caption,
           media_url,
+          media_urls,
           text_content,
           post_type,
           created_at,
@@ -183,20 +185,20 @@ const FeedPage = () => {
     <MainLayout>
       <PullToRefresh onRefresh={handleRefresh} className="min-h-[calc(100dvh-80px)]">
         <div className="animate-fade-up w-full">
-          {/* AI Search Bar - Fixed at top */}
-          <div className="sticky top-0 z-20 bg-background pb-4 -mx-4 px-4">
+          {/* Stories Bar - horizontal scroll */}
+          <FeedStoriesBar stories={storyUsers} />
+
+          {/* AI Search Bar */}
+          <div className="py-3">
             <AISearchBar />
           </div>
-
-          {/* Stories */}
-          {storyUsers.length > 0 && <StoriesBar stories={storyUsers} />}
 
           {/* Posts */}
           {posts.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="card-base p-8 text-center"
+              className="bg-card rounded-2xl p-8 text-center border border-border"
             >
               <div className="flex flex-col items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
@@ -214,9 +216,9 @@ const FeedPage = () => {
               </div>
             </motion.div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {posts.map((post) => (
-                <PostCard
+                <FeedPostCard
                   key={post.id}
                   post={post}
                   onLikeToggle={fetchFeed}
