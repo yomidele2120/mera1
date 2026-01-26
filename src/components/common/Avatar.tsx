@@ -5,13 +5,14 @@ interface AvatarProps {
   src?: string | null;
   alt?: string;
   fallback?: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   hasStory?: boolean;
   hasUnseenStory?: boolean;
   className?: string;
 }
 
 const sizeClasses = {
+  xs: "h-6 w-6",
   sm: "h-8 w-8",
   md: "h-10 w-10",
   lg: "h-14 w-14",
@@ -19,6 +20,7 @@ const sizeClasses = {
 };
 
 const fallbackSizeClasses = {
+  xs: "text-[10px]",
   sm: "text-xs",
   md: "text-sm",
   lg: "text-lg",

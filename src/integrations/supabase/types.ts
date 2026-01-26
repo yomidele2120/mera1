@@ -111,22 +111,35 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          post_reference_id: string | null
+          post_slide_index: number | null
           user1_id: string
           user2_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          post_reference_id?: string | null
+          post_slide_index?: number | null
           user1_id: string
           user2_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          post_reference_id?: string | null
+          post_slide_index?: number | null
           user1_id?: string
           user2_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chats_post_reference_id_fkey"
+            columns: ["post_reference_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chats_user1_id_fkey"
             columns: ["user1_id"]
@@ -218,6 +231,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      dm_topics: {
+        Row: {
+          chat_id: string
+          created_at: string
+          created_by: string
+          id: string
+          is_archived: boolean
+          is_muted: boolean
+          is_pinned: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_archived?: boolean
+          is_muted?: boolean
+          is_pinned?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_archived?: boolean
+          is_muted?: boolean
+          is_pinned?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_topics_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       followers: {
         Row: {
@@ -318,6 +375,65 @@ export type Database = {
           },
         ]
       }
+      message_stacks: {
+        Row: {
+          chat_id: string
+          created_at: string
+          id: string
+          post_reference_id: string | null
+          sender_id: string
+          sender_persona_id: string | null
+          topic_id: string | null
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          id?: string
+          post_reference_id?: string | null
+          sender_id: string
+          sender_persona_id?: string | null
+          topic_id?: string | null
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          id?: string
+          post_reference_id?: string | null
+          sender_id?: string
+          sender_persona_id?: string | null
+          topic_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_stacks_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_stacks_post_reference_id_fkey"
+            columns: ["post_reference_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_stacks_sender_persona_id_fkey"
+            columns: ["sender_persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_stacks_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "dm_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           chat_id: string
@@ -330,8 +446,10 @@ export type Database = {
           reply_to_id: string | null
           seen: boolean
           sender_id: string
+          sender_persona_id: string | null
           sender_public_key: string | null
           text: string | null
+          topic_id: string | null
         }
         Insert: {
           chat_id: string
@@ -344,8 +462,10 @@ export type Database = {
           reply_to_id?: string | null
           seen?: boolean
           sender_id: string
+          sender_persona_id?: string | null
           sender_public_key?: string | null
           text?: string | null
+          topic_id?: string | null
         }
         Update: {
           chat_id?: string
@@ -358,8 +478,10 @@ export type Database = {
           reply_to_id?: string | null
           seen?: boolean
           sender_id?: string
+          sender_persona_id?: string | null
           sender_public_key?: string | null
           text?: string | null
+          topic_id?: string | null
         }
         Relationships: [
           {
@@ -381,6 +503,20 @@ export type Database = {
             columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_persona_id_fkey"
+            columns: ["sender_persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "dm_topics"
             referencedColumns: ["id"]
           },
         ]
@@ -460,6 +596,48 @@ export type Database = {
           id?: string
           used?: boolean
           user_id?: string
+        }
+        Relationships: []
+      }
+      personas: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          is_default: boolean
+          persona_type: string
+          privacy_level: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_default?: boolean
+          persona_type?: string
+          privacy_level?: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_default?: boolean
+          persona_type?: string
+          privacy_level?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
         }
         Relationships: []
       }
@@ -667,6 +845,135 @@ export type Database = {
           used?: boolean
         }
         Relationships: []
+      }
+      stack_items: {
+        Row: {
+          content: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          item_type: string
+          media_url: string | null
+          sort_order: number
+          stack_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          item_type?: string
+          media_url?: string | null
+          sort_order?: number
+          stack_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          item_type?: string
+          media_url?: string | null
+          sort_order?: number
+          stack_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stack_items_stack_id_fkey"
+            columns: ["stack_id"]
+            isOneToOne: false
+            referencedRelation: "message_stacks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stack_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          item_id: string | null
+          stack_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          item_id?: string | null
+          stack_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          item_id?: string | null
+          stack_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stack_reactions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "stack_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stack_reactions_stack_id_fkey"
+            columns: ["stack_id"]
+            isOneToOne: false
+            referencedRelation: "message_stacks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stack_replies: {
+        Row: {
+          created_at: string
+          id: string
+          parent_item_id: string | null
+          parent_stack_id: string | null
+          reply_stack_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parent_item_id?: string | null
+          parent_stack_id?: string | null
+          reply_stack_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parent_item_id?: string | null
+          parent_stack_id?: string | null
+          reply_stack_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stack_replies_parent_item_id_fkey"
+            columns: ["parent_item_id"]
+            isOneToOne: false
+            referencedRelation: "stack_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stack_replies_parent_stack_id_fkey"
+            columns: ["parent_stack_id"]
+            isOneToOne: false
+            referencedRelation: "message_stacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stack_replies_reply_stack_id_fkey"
+            columns: ["reply_stack_id"]
+            isOneToOne: false
+            referencedRelation: "message_stacks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stories: {
         Row: {
