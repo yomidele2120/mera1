@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Send, Image, Lock, MoreVertical, Ban, Phone, Video, Camera, Smile, Reply, VideoIcon } from "lucide-react";
+import { ArrowLeft, Send, Lock, MoreVertical, Ban, Camera, Smile, Reply, VideoIcon } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,11 +33,13 @@ import { VideoRecorder } from "@/components/chat/VideoRecorder";
 import { MediaFilePicker } from "@/components/chat/MediaFilePicker";
 import { ReplyPreview, QuotedMessage } from "@/components/chat/ReplyPreview";
 import { ReadReceipt } from "@/components/chat/ReadReceipt";
+import { TopicTabs } from "@/components/chat/TopicTabs";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
 import { useBlocking } from "@/hooks/useBlocking";
 import { useOnlineStatus, getOnlineStatusText } from "@/hooks/useOnlineStatus";
+import { useTopics } from "@/hooks/useTopics";
 import { OnlineStatusBadge } from "@/components/user/OnlineStatusBadge";
-import { BlockUserButton } from "@/components/user/BlockUserButton";
+
 import { ReportDialog } from "@/components/user/ReportDialog";
 import {
   DropdownMenu,
@@ -112,8 +114,11 @@ const ChatPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { handleTyping } = useTypingIndicator(chatId, user?.id);
-  const { isBlocked, isBlockedByOther, isAnyBlocked, blockUser, unblockUser, loading: blockLoading } = useBlocking(otherUser?.id);
-  const { startCall, isBlocked: callBlocked } = useCallContext();
+  const { isBlocked, isAnyBlocked, blockUser, unblockUser, loading: blockLoading } = useBlocking(otherUser?.id);
+  const { startCall } = useCallContext();
+  
+  // Topic-based threads
+  const { topics, activeTopicId, selectTopic, createTopic, updateTopic } = useTopics(chatId);
   
   // Update user activity
   useOnlineStatus(user?.id);
@@ -762,6 +767,17 @@ const ChatPage = () => {
             End-to-end encrypted
           </p>
         </div>
+      )}
+
+      {/* Topic-based Threads */}
+      {topics.length > 0 && (
+        <TopicTabs
+          topics={topics}
+          activeTopicId={activeTopicId}
+          onSelectTopic={selectTopic}
+          onCreateTopic={createTopic}
+          onUpdateTopic={updateTopic}
+        />
       )}
 
       {/* Messages with Background */}

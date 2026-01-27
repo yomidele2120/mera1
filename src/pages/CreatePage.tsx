@@ -13,7 +13,8 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
-
+import { PersonaSwitcher, Persona } from "@/components/persona/PersonaSwitcher";
+import { usePersonas } from "@/hooks/usePersonas";
 type ContentType = "text" | "image" | "video" | "audio";
 type UploadType = "post" | "story";
 type StoryContentType = "media" | "text";
@@ -110,6 +111,7 @@ const CreatePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { personas, activePersona, selectPersona, createPersona } = usePersonas();
 
   const handleMultiFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -588,6 +590,19 @@ const CreatePage = () => {
         <StickyHeader title="Create" />
 
         <div className="px-4 pt-4 animate-fade-up">
+          {/* Persona Selector */}
+          {personas.length > 0 && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Posting as:</span>
+              <PersonaSwitcher
+                personas={personas}
+                activePersona={activePersona}
+                onSelectPersona={selectPersona}
+                onCreatePersona={createPersona}
+              />
+            </div>
+          )}
+
           <Tabs value={uploadType} onValueChange={(v) => {
             setUploadType(v as UploadType);
             clearSelection();

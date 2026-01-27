@@ -22,12 +22,16 @@ import { Textarea } from "@/components/ui/textarea";
 
 export interface Persona {
   id: string;
+  user_id?: string;
   persona_type: "public" | "friends" | "business" | "anonymous";
   username: string;
   display_name: string | null;
   avatar_url: string | null;
   bio: string | null;
   is_default: boolean;
+  privacy_level?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface PersonaSwitcherProps {
