@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Send, Lock, MoreVertical, Ban, Camera, Smile, Reply, VideoIcon } from "lucide-react";
+import { ArrowLeft, Send, Lock, MoreVertical, Ban, Camera, Smile, Reply, VideoIcon, Layers } from "lucide-react";
 import { UserAvatar } from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,10 +34,13 @@ import { MediaFilePicker } from "@/components/chat/MediaFilePicker";
 import { ReplyPreview, QuotedMessage } from "@/components/chat/ReplyPreview";
 import { ReadReceipt } from "@/components/chat/ReadReceipt";
 import { TopicTabs } from "@/components/chat/TopicTabs";
+import { MessageStacksList } from "@/components/chat/MessageStacksList";
+import { StackComposer } from "@/components/chat/StackComposer";
 import { useTypingIndicator, useTypingSubscription } from "@/hooks/useTypingIndicator";
 import { useBlocking } from "@/hooks/useBlocking";
 import { useOnlineStatus, getOnlineStatusText } from "@/hooks/useOnlineStatus";
 import { useTopics } from "@/hooks/useTopics";
+import { useMessageStacks } from "@/hooks/useMessageStacks";
 import { OnlineStatusBadge } from "@/components/user/OnlineStatusBadge";
 
 import { ReportDialog } from "@/components/user/ReportDialog";
@@ -80,6 +83,7 @@ interface DecryptedMessage extends Message {
 
 const ChatPage = () => {
   const { chatId } = useParams();
+  const location = useLocation();
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<DecryptedMessage[]>([]);
@@ -93,6 +97,10 @@ const ChatPage = () => {
   const [encryptionReady, setEncryptionReady] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [chatBackground, setChatBackground] = useState<string | null>(null);
+  
+  // Stacks mode toggle (new swipeable message stacks)
+  const [useStacksMode, setUseStacksMode] = useState(true);
+  const [replyToStack, setReplyToStack] = useState<{ stackId: string; itemId?: string; preview: string; senderName: string } | null>(null);
   
   // Selection mode state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -120,12 +128,28 @@ const ChatPage = () => {
   // Topic-based threads
   const { topics, activeTopicId, selectTopic, createTopic, updateTopic } = useTopics(chatId);
   
+  // Message stacks hook
+  const { stacks, sendStack, addReaction } = useMessageStacks(chatId, activeTopicId);
+  
   // Update user activity
   useOnlineStatus(user?.id);
   
   // Get online status for other user
   const onlineStatus = getOnlineStatusText(otherUser?.last_active_at || null);
   
+  // Handle post context from navigation (reply privately)
+  const postContext = location.state?.replyToPost as { id: string; caption?: string; mediaUrl?: string; slideIndex?: number; username?: string } | undefined;
+  
+  // Set initial reply context if coming from post
+  useEffect(() => {
+    if (postContext && otherUser) {
+      setReplyToStack({
+        stackId: "post-context",
+        preview: postContext.caption || "Replying to a post",
+        senderName: postContext.username || otherUser.username,
+      });
+    }
+  }, [postContext, otherUser]);
   // Call handlers
   const handleVoiceCall = () => {
     if (otherUser && !isAnyBlocked) {
@@ -735,6 +759,10 @@ const ChatPage = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setUseStacksMode(!useStacksMode)}>
+              <Layers className="h-4 w-4 mr-2" />
+              {useStacksMode ? "Classic View" : "Stacks View"}
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <ChatBackgroundPicker
                 currentBackground={chatBackground}
@@ -782,136 +810,159 @@ const ChatPage = () => {
 
       {/* Messages with Background */}
       <ChatBackground backgroundUrl={chatBackground}>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 h-full">
-          {messages.map((message, index) => {
-            const isOwn = message.sender_id === user?.id;
-            const showAvatar =
-              !isOwn &&
-              (index === 0 || messages[index - 1].sender_id !== message.sender_id);
-            const messageText = getMessageText(message);
-            const isSelected = selectedMessages.has(message.id);
+        {useStacksMode ? (
+          /* New Swipeable Message Stacks View */
+          <MessageStacksList
+            stacks={stacks}
+            currentUserId={user?.id || ""}
+            isOtherTyping={isOtherTyping}
+            onReply={(stackId, itemId) => {
+              const stack = stacks.find((s) => s.id === stackId);
+              if (stack) {
+                const item = itemId ? stack.items.find((i) => i.id === itemId) : stack.items[0];
+                setReplyToStack({
+                  stackId,
+                  itemId,
+                  preview: item?.content || item?.item_type || "Media",
+                  senderName: stack.sender.username,
+                });
+              }
+            }}
+            onReact={addReaction}
+          />
+        ) : (
+          /* Legacy Linear Message Bubbles View */
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 h-full">
+            {messages.map((message, index) => {
+              const isOwn = message.sender_id === user?.id;
+              const showAvatar =
+                !isOwn &&
+                (index === 0 || messages[index - 1].sender_id !== message.sender_id);
+              const messageText = getMessageText(message);
+              const isSelected = selectedMessages.has(message.id);
 
-            return (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn(
-                  "flex gap-2 group",
-                  isOwn ? "justify-end" : "justify-start",
-                  isSelected && "bg-primary/10 -mx-2 px-2 py-1 rounded-lg"
-                )}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  handleLongPress(message.id);
-                }}
-              >
-                {/* Selection checkbox */}
-                {selectionMode && (
-                  <div className="flex items-center">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleMessageSelection(message.id)}
-                    />
-                  </div>
-                )}
-
-                {!isOwn && (
-                  <div className="w-8 flex-shrink-0">
-                    {showAvatar && otherUser && (
-                      <UserAvatar
-                        src={otherUser.avatar_url}
-                        fallback={otherUser.username}
-                        size="sm"
-                      />
-                    )}
-                  </div>
-                )}
-                
-                {/* Message options for own messages - left side */}
-                {isOwn && !selectionMode && (
-                  <div className="flex items-center">
-                    <MessageOptionsMenu
-                      messageId={message.id}
-                      senderId={message.sender_id}
-                      messageText={messageText}
-                      onDeleted={() => handleMessageDeleted(message.id)}
-                    />
-                  </div>
-                )}
-                
-                <div
-                  onClick={() => selectionMode && toggleMessageSelection(message.id)}
-                  onDoubleClick={() => !selectionMode && handleReply(message)}
+              return (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className={cn(
-                    "max-w-[70%] rounded-2xl px-4 py-2 cursor-pointer",
-                    isOwn
-                      ? "gradient-primary text-primary-foreground rounded-br-md"
-                      : "bg-card text-foreground rounded-bl-md border border-border"
+                    "flex gap-2 group",
+                    isOwn ? "justify-end" : "justify-start",
+                    isSelected && "bg-primary/10 -mx-2 px-2 py-1 rounded-lg"
                   )}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    handleLongPress(message.id);
+                  }}
                 >
-                  {/* Quoted message */}
-                  {message.reply_to_id && (() => {
-                    const quoted = getReplyMessage(message.reply_to_id);
-                    return quoted ? (
-                      <QuotedMessage originalMessage={quoted} isOwnMessage={isOwn} />
-                    ) : null;
-                  })()}
-                  
-                  <PrivateMediaContent
-                    messageType={message.message_type || "text"}
-                    mediaUrl={message.media_url}
-                    text={messageText}
-                    isOwn={isOwn}
-                    chatId={chatId!}
-                  />
-                  <div
-                    className={cn(
-                      "flex items-center gap-1.5 mt-1",
-                      isOwn ? "justify-end" : "justify-start"
-                    )}
-                  >
-                    <span className={cn("text-[10px]", isOwn ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                      {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                    </span>
-                    {isOwn && (
-                      <ReadReceipt
-                        seen={message.seen}
-                        createdAt={message.created_at}
-                        isOwn={true}
+                  {/* Selection checkbox */}
+                  {selectionMode && (
+                    <div className="flex items-center">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleMessageSelection(message.id)}
                       />
+                    </div>
+                  )}
+
+                  {!isOwn && (
+                    <div className="w-8 flex-shrink-0">
+                      {showAvatar && otherUser && (
+                        <UserAvatar
+                          src={otherUser.avatar_url}
+                          fallback={otherUser.username}
+                          size="sm"
+                        />
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Message options for own messages - left side */}
+                  {isOwn && !selectionMode && (
+                    <div className="flex items-center">
+                      <MessageOptionsMenu
+                        messageId={message.id}
+                        senderId={message.sender_id}
+                        messageText={messageText}
+                        onDeleted={() => handleMessageDeleted(message.id)}
+                      />
+                    </div>
+                  )}
+                  
+                  <div
+                    onClick={() => selectionMode && toggleMessageSelection(message.id)}
+                    onDoubleClick={() => !selectionMode && handleReply(message)}
+                    className={cn(
+                      "max-w-[70%] rounded-2xl px-4 py-2 cursor-pointer",
+                      isOwn
+                        ? "gradient-primary text-primary-foreground rounded-br-md"
+                        : "bg-card text-foreground rounded-bl-md border border-border"
                     )}
-                  </div>
-                </div>
-                
-                {/* Reply button */}
-                {!selectionMode && (
-                  <button
-                    onClick={() => handleReply(message)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-muted transition-all"
                   >
-                    <Reply className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                )}
-                
-                {/* Message options for other's messages - right side */}
-                {!isOwn && !selectionMode && (
-                  <div className="flex items-center">
-                    <MessageOptionsMenu
-                      messageId={message.id}
-                      senderId={message.sender_id}
-                      messageText={messageText}
+                    {/* Quoted message */}
+                    {message.reply_to_id && (() => {
+                      const quoted = getReplyMessage(message.reply_to_id);
+                      return quoted ? (
+                        <QuotedMessage originalMessage={quoted} isOwnMessage={isOwn} />
+                      ) : null;
+                    })()}
+                    
+                    <PrivateMediaContent
+                      messageType={message.message_type || "text"}
+                      mediaUrl={message.media_url}
+                      text={messageText}
+                      isOwn={isOwn}
+                      chatId={chatId!}
                     />
+                    <div
+                      className={cn(
+                        "flex items-center gap-1.5 mt-1",
+                        isOwn ? "justify-end" : "justify-start"
+                      )}
+                    >
+                      <span className={cn("text-[10px]", isOwn ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                        {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                      </span>
+                      {isOwn && (
+                        <ReadReceipt
+                          seen={message.seen}
+                          createdAt={message.created_at}
+                          isOwn={true}
+                        />
+                      )}
+                    </div>
                   </div>
-                )}
-              </motion.div>
-            );
-          })}
-          
-          {isOtherTyping && <TypingIndicator />}
-          
-          <div ref={messagesEndRef} />
-        </div>
+                  
+                  {/* Reply button */}
+                  {!selectionMode && (
+                    <button
+                      onClick={() => handleReply(message)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-muted transition-all"
+                    >
+                      <Reply className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  )}
+                  
+                  {/* Message options for other's messages - right side */}
+                  {!isOwn && !selectionMode && (
+                    <div className="flex items-center">
+                      <MessageOptionsMenu
+                        messageId={message.id}
+                        senderId={message.sender_id}
+                        messageText={messageText}
+                      />
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+            
+            {isOtherTyping && <TypingIndicator />}
+            
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </ChatBackground>
 
       {/* Input - Blocked state */}
@@ -926,7 +977,33 @@ const ChatPage = () => {
             </Button>
           )}
         </div>
+      ) : useStacksMode ? (
+        /* New StackComposer for stacks mode */
+        <StackComposer
+          onSend={async (items) => {
+            const composerItems = items.map((item) => ({
+              id: item.id,
+              type: item.type,
+              content: item.content,
+              file: item.file,
+              preview: item.preview,
+            }));
+            await sendStack(composerItems, replyToStack?.stackId, replyToStack?.itemId);
+            setReplyToStack(null);
+          }}
+          onStartRecording={() => {/* Voice recording handled by VoiceRecorder */}}
+          onOpenCamera={() => setCameraOpen(true)}
+          onOpenGifPicker={() => setGifPickerOpen(true)}
+          replyTo={replyToStack ? {
+            id: replyToStack.stackId,
+            preview: replyToStack.preview,
+            senderName: replyToStack.senderName,
+          } : null}
+          onCancelReply={() => setReplyToStack(null)}
+          disabled={sending}
+        />
       ) : (
+        /* Legacy input form */
         <form onSubmit={sendMessage} className="border-t border-border p-4 bg-card safe-bottom relative">
           {/* Reply Preview */}
           <ReplyPreview
