@@ -1,16 +1,17 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Bookmark } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { UserAvatar } from "@/components/common/Avatar";
 import { MediaCarousel } from "@/components/post/MediaCarousel";
 import { PostOptionsMenu } from "@/components/post/PostOptionsMenu";
-import { SharePostButton } from "@/components/post/SharePostButton";
+import { PostContextMenu } from "@/components/post/PostContextMenu";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useLongPress } from "@/hooks/useLongPress";
 
 interface MediaItem {
   url: string;
@@ -49,6 +50,8 @@ export const FeedPostCard = ({ post, onLikeToggle, onCommentClick, onMediaClick 
   const [likesCount, setLikesCount] = useState(post.likes?.length ?? 0);
   const [isLikeAnimating, setIsLikeAnimating] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuSlideIndex, setContextMenuSlideIndex] = useState<number | undefined>();
   const doubleTapRef = useRef<number>(0);
 
   const postType = post.post_type || (post.media_url ? "image" : "text");
@@ -142,11 +145,24 @@ export const FeedPostCard = ({ post, onLikeToggle, onCommentClick, onMediaClick 
     }
   };
 
+  const handleLongPress = (slideIndex?: number) => {
+    if (post.user_id === user?.id) return; // Don't show for own posts
+    setContextMenuSlideIndex(slideIndex);
+    setContextMenuOpen(true);
+  };
+
+  const longPressHandlers = useLongPress({
+    onLongPress: () => handleLongPress(),
+    delay: 500,
+  });
+
   return (
+    <>
     <motion.article
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-card rounded-2xl overflow-hidden border border-border"
+      {...longPressHandlers}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
@@ -273,5 +289,18 @@ export const FeedPostCard = ({ post, onLikeToggle, onCommentClick, onMediaClick 
         </div>
       </div>
     </motion.article>
+
+    {/* Context Menu for Reply/Start Conversation */}
+    <PostContextMenu
+      isOpen={contextMenuOpen}
+      onClose={() => setContextMenuOpen(false)}
+      postId={post.id}
+      postUserId={post.user_id}
+      postUsername={post.profiles.username}
+      slideIndex={contextMenuSlideIndex}
+      caption={post.caption}
+      mediaUrl={post.media_url}
+    />
+    </>
   );
 };
