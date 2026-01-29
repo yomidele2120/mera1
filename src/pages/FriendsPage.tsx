@@ -29,6 +29,7 @@ import { DialPad } from "@/components/friends/DialPad";
 import { EditContactDialog } from "@/components/friends/EditContactDialog";
 import { FriendRequestCard } from "@/components/friends/FriendRequestCard";
 import { ContactImportDialog } from "@/components/friends/ContactImportDialog";
+import { ContactImportSheet } from "@/components/friends/ContactImportSheet";
 import { FriendSuggestions } from "@/components/friends/FriendSuggestions";
 
 interface Friend {
@@ -73,6 +74,7 @@ const FriendsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingContact, setEditingContact] = useState<Friend | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importSheetOpen, setImportSheetOpen] = useState(false);
 
   const fetchFriendsAndContacts = async () => {
     if (!user) return;
@@ -387,9 +389,9 @@ const FriendsPage = () => {
           title="Friends"
           rightAction={
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => setImportSheetOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
-                Import
+                Find
               </Button>
               <Dialog>
                 <DialogTrigger asChild>
@@ -542,6 +544,12 @@ const FriendsPage = () => {
       <ContactImportDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
+        onImported={fetchFriendsAndContacts}
+      />
+
+      <ContactImportSheet
+        open={importSheetOpen}
+        onOpenChange={setImportSheetOpen}
         onImported={fetchFriendsAndContacts}
       />
     </MainLayout>

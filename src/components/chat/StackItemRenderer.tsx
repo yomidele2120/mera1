@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { ChatMediaViewer } from "./ChatMediaViewer";
 
 interface StackItem {
   id: string;
@@ -21,6 +22,7 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [showMediaViewer, setShowMediaViewer] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -34,6 +36,18 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
   const handleTouchEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
+    }
+  };
+
+  const handleMediaTap = (e: React.MouseEvent) => {
+    // Prevent opening viewer on long press
+    if (e.detail === 1) {
+      const timer = setTimeout(() => {
+        if (item.item_type === "image" || item.item_type === "video" || item.item_type === "gif") {
+          setShowMediaViewer(true);
+        }
+      }, 200);
+      return () => clearTimeout(timer);
     }
   };
 
@@ -68,6 +82,13 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
     };
   }, []);
 
+  // Get media type for viewer
+  const getMediaType = (): "image" | "video" | "audio" => {
+    if (item.item_type === "video") return "video";
+    if (item.item_type === "audio" || item.item_type === "voice") return "audio";
+    return "image";
+  };
+
   const renderContent = () => {
     switch (item.item_type) {
       case "text":
@@ -86,11 +107,12 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
       case "image":
         return item.media_url ? (
           <div
-            className="relative"
+            className="relative cursor-pointer"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onMouseDown={handleTouchStart}
             onMouseUp={handleTouchEnd}
+            onClick={handleMediaTap}
           >
             <img
               src={item.media_url}
@@ -104,11 +126,12 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
       case "video":
         return item.media_url ? (
           <div
-            className="relative rounded-xl overflow-hidden"
+            className="relative rounded-xl overflow-hidden cursor-pointer"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onMouseDown={handleTouchStart}
             onMouseUp={handleTouchEnd}
+            onClick={handleMediaTap}
           >
             <video
               ref={videoRef}
@@ -116,16 +139,15 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
               className="max-w-full max-h-64 object-cover"
               muted={isMuted}
               playsInline
-              controls
               onTimeUpdate={() => handleTimeUpdate(videoRef.current)}
               onEnded={handleEnded}
             />
-            <button
-              onClick={() => setIsMuted(!isMuted)}
-              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-background/80 backdrop-blur-sm"
-            >
-              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
+            {/* Play overlay */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <div className="p-3 rounded-full bg-black/50 backdrop-blur-sm">
+                <Play className="h-6 w-6 text-white" />
+              </div>
+            </div>
           </div>
         ) : null;
 
@@ -197,12 +219,13 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
           <img
             src={item.media_url}
             alt="GIF"
-            className="rounded-xl max-w-full max-h-48 object-contain"
+            className="rounded-xl max-w-full max-h-48 object-contain cursor-pointer"
             loading="lazy"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onMouseDown={handleTouchStart}
             onMouseUp={handleTouchEnd}
+            onClick={handleMediaTap}
           />
         ) : null;
 
@@ -227,5 +250,21 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
     }
   };
 
-  return renderContent();
+  return (
+    <>
+      {renderContent()}
+      
+      {/* Full-screen media viewer */}
+      {item.media_url && (
+        <ChatMediaViewer
+          media={[{
+            type: getMediaType(),
+            url: item.media_url,
+          }]}
+          isOpen={showMediaViewer}
+          onClose={() => setShowMediaViewer(false)}
+        />
+      )}
+    </>
+  );
 };

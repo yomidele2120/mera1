@@ -73,10 +73,32 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Initialize push notifications
+// Initialize push notifications with permission modal
 const PushNotificationInit = () => {
-  usePushNotifications();
-  return null;
+  const { 
+    showPermissionModal, 
+    setShowPermissionModal, 
+    requestPermission,
+    skipPermissionPrompt
+  } = usePushNotifications();
+  
+  // Lazy import the modal to avoid circular dependencies
+  const NotificationPermissionModal = lazy(() => 
+    import("./components/notifications/NotificationPermissionModal").then(m => ({ 
+      default: m.NotificationPermissionModal 
+    }))
+  );
+  
+  return (
+    <Suspense fallback={null}>
+      <NotificationPermissionModal
+        open={showPermissionModal}
+        onOpenChange={setShowPermissionModal}
+        onEnable={requestPermission}
+        onSkip={skipPermissionPrompt}
+      />
+    </Suspense>
+  );
 };
 
 const AppRoutes = () => {
