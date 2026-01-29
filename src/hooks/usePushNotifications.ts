@@ -1,54 +1,37 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotificationPermission } from './useNotificationPermission';
 
 export const usePushNotifications = () => {
   const { user } = useAuth();
+  const { 
+    permission, 
+    showLocalNotification, 
+    isGranted,
+    triggerPermissionPrompt,
+    showPermissionModal,
+    setShowPermissionModal,
+    requestPermission,
+    skipPermissionPrompt
+  } = useNotificationPermission();
+  
+  const hasTriggeredRef = useRef(false);
 
-  const registerServiceWorker = useCallback(async () => {
-    if (!('serviceWorker' in navigator)) {
-      console.log('Service Worker not supported');
-      return null;
+  // Trigger permission prompt on first message send
+  const onUserSendsFirstMessage = useCallback(() => {
+    if (!hasTriggeredRef.current) {
+      hasTriggeredRef.current = true;
+      triggerPermissionPrompt();
     }
-
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Service Worker registered:', registration);
-      return registration;
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-      return null;
-    }
-  }, []);
-
-  const requestPermission = useCallback(async () => {
-    if (!('Notification' in window)) {
-      console.log('Notifications not supported');
-      return false;
-    }
-
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-  }, []);
-
-  const showLocalNotification = useCallback((title: string, options: NotificationOptions & { data?: Record<string, unknown> }) => {
-    if (Notification.permission === 'granted') {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, {
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          ...options
-        });
-      });
-    }
-  }, []);
+  }, [triggerPermissionPrompt]);
 
   // Subscribe to new messages
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isGranted) return;
 
     const channel = supabase
-      .channel('notifications-messages')
+      .channel('push-notifications-messages')
       .on(
         'postgres_changes',
         {
@@ -87,14 +70,57 @@ export const usePushNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, showLocalNotification]);
+  }, [user, isGranted, showLocalNotification]);
+
+  // Subscribe to message stacks (new messaging system)
+  useEffect(() => {
+    if (!user || !isGranted) return;
+
+    const channel = supabase
+      .channel('push-notifications-stacks')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_stacks'
+        },
+        async (payload) => {
+          const stack = payload.new as { sender_id: string; chat_id: string };
+          
+          if (stack.sender_id === user.id) return;
+          
+          if (document.hidden) {
+            const { data: sender } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', stack.sender_id)
+              .single();
+
+            if (sender) {
+              showLocalNotification('New Message', {
+                body: `${sender.username} sent you a message`,
+                icon: sender.avatar_url || '/favicon.ico',
+                tag: `stack-${stack.chat_id}`,
+                data: { url: `/messages/${stack.chat_id}` }
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isGranted, showLocalNotification]);
 
   // Subscribe to new likes
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isGranted) return;
 
     const channel = supabase
-      .channel('notifications-likes')
+      .channel('push-notifications-likes')
       .on(
         'postgres_changes',
         {
@@ -105,10 +131,8 @@ export const usePushNotifications = () => {
         async (payload) => {
           const like = payload.new as { user_id: string; post_id: string };
           
-          // Don't notify for own likes
           if (like.user_id === user.id) return;
 
-          // Check if the liked post belongs to us
           const { data: post } = await supabase
             .from('posts')
             .select('user_id')
@@ -140,14 +164,14 @@ export const usePushNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, showLocalNotification]);
+  }, [user, isGranted, showLocalNotification]);
 
   // Subscribe to friend requests
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isGranted) return;
 
     const channel = supabase
-      .channel('notifications-friend-requests')
+      .channel('push-notifications-friend-requests')
       .on(
         'postgres_changes',
         {
@@ -158,7 +182,6 @@ export const usePushNotifications = () => {
         async (payload) => {
           const request = payload.new as { sender_id: string; receiver_id: string };
           
-          // Only notify the receiver
           if (request.receiver_id !== user.id) return;
 
           if (document.hidden) {
@@ -184,14 +207,14 @@ export const usePushNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, showLocalNotification]);
+  }, [user, isGranted, showLocalNotification]);
 
   // Subscribe to missed calls
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isGranted) return;
 
     const channel = supabase
-      .channel('notifications-calls')
+      .channel('push-notifications-calls')
       .on(
         'postgres_changes',
         {
@@ -202,7 +225,6 @@ export const usePushNotifications = () => {
         async (payload) => {
           const call = payload.new as { caller_id: string; receiver_id: string; status: string };
           
-          // Only notify receiver for missed calls
           if (call.receiver_id !== user.id || call.status !== 'missed') return;
 
           if (document.hidden) {
@@ -228,14 +250,14 @@ export const usePushNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, showLocalNotification]);
+  }, [user, isGranted, showLocalNotification]);
 
   // Subscribe to new posts from followed users
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isGranted) return;
 
     const channel = supabase
-      .channel('notifications-posts')
+      .channel('push-notifications-posts')
       .on(
         'postgres_changes',
         {
@@ -246,10 +268,8 @@ export const usePushNotifications = () => {
         async (payload) => {
           const post = payload.new as { user_id: string; id: string; caption?: string };
           
-          // Don't notify for own posts
           if (post.user_id === user.id) return;
 
-          // Check if we follow this user
           const { data: following } = await supabase
             .from('followers')
             .select('id')
@@ -282,16 +302,16 @@ export const usePushNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, showLocalNotification]);
-
-  // Initialize on mount
-  useEffect(() => {
-    registerServiceWorker();
-    requestPermission();
-  }, [registerServiceWorker, requestPermission]);
+  }, [user, isGranted, showLocalNotification]);
 
   return {
     showLocalNotification,
-    requestPermission
+    requestPermission,
+    permission,
+    isGranted,
+    onUserSendsFirstMessage,
+    showPermissionModal,
+    setShowPermissionModal,
+    skipPermissionPrompt
   };
 };

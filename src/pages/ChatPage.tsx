@@ -991,7 +991,6 @@ const ChatPage = () => {
             await sendStack(composerItems, replyToStack?.stackId, replyToStack?.itemId);
             setReplyToStack(null);
           }}
-          onStartRecording={() => {/* Voice recording handled by VoiceRecorder */}}
           onOpenCamera={() => setCameraOpen(true)}
           onOpenGifPicker={() => setGifPickerOpen(true)}
           replyTo={replyToStack ? {

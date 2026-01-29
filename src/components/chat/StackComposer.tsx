@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Image, Mic, Camera, X, Plus, Smile } from "lucide-react";
+import { Send, Image, Mic, Camera, X, Plus, Smile, Square, Trash2, Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,11 +12,11 @@ interface ComposerItem {
   content?: string;
   file?: File;
   preview?: string;
+  duration?: number;
 }
 
 interface StackComposerProps {
   onSend: (items: ComposerItem[]) => void;
-  onStartRecording: () => void;
   onOpenCamera: () => void;
   onOpenGifPicker: () => void;
   replyTo?: { id: string; preview: string; senderName: string } | null;
@@ -26,7 +26,6 @@ interface StackComposerProps {
 
 export const StackComposer = ({
   onSend,
-  onStartRecording,
   onOpenCamera,
   onOpenGifPicker,
   replyTo,
@@ -36,7 +35,18 @@ export const StackComposer = ({
   const [items, setItems] = useState<ComposerItem[]>([]);
   const [textInput, setTextInput] = useState("");
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [voicePreview, setVoicePreview] = useState<{ blob: Blob; url: string } | null>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -57,11 +67,12 @@ export const StackComposer = ({
     files.forEach((file) => {
       const isVideo = file.type.startsWith("video/");
       const isImage = file.type.startsWith("image/");
+      const isAudio = file.type.startsWith("audio/");
       
-      if (isImage || isVideo) {
+      if (isImage || isVideo || isAudio) {
         setItems((prev) => [...prev, {
           id: generateId(),
-          type: isVideo ? "video" : "image",
+          type: isVideo ? "video" : isImage ? "image" : "audio",
           file,
           preview: URL.createObjectURL(file),
         }]);
@@ -84,6 +95,96 @@ export const StackComposer = ({
     });
   };
 
+  // Voice recording functions
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setVoicePreview({ blob, url });
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error("Error starting recording:", error);
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    }
+  }, [isRecording]);
+
+  const cancelRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (voicePreview) {
+      URL.revokeObjectURL(voicePreview.url);
+    }
+    setVoicePreview(null);
+    setRecordingTime(0);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }, [isRecording, voicePreview]);
+
+  const addVoiceToStack = useCallback(() => {
+    if (voicePreview) {
+      const file = new File([voicePreview.blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+      setItems((prev) => [...prev, {
+        id: generateId(),
+        type: "voice",
+        file,
+        preview: voicePreview.url,
+        duration: recordingTime,
+      }]);
+      setVoicePreview(null);
+      setRecordingTime(0);
+    }
+  }, [voicePreview, recordingTime]);
+
+  const togglePreviewPlayback = useCallback(() => {
+    if (!audioPreviewRef.current || !voicePreview) return;
+    
+    if (isPlayingPreview) {
+      audioPreviewRef.current.pause();
+    } else {
+      audioPreviewRef.current.play();
+    }
+    setIsPlayingPreview(!isPlayingPreview);
+  }, [isPlayingPreview, voicePreview]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   const handleSend = () => {
     // Add current text if any
     const allItems = [...items];
@@ -93,6 +194,20 @@ export const StackComposer = ({
         type: "text",
         content: textInput.trim(),
       });
+    }
+
+    // Add voice preview if exists
+    if (voicePreview) {
+      const file = new File([voicePreview.blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+      allItems.push({
+        id: generateId(),
+        type: "voice",
+        file,
+        preview: voicePreview.url,
+        duration: recordingTime,
+      });
+      setVoicePreview(null);
+      setRecordingTime(0);
     }
 
     if (allItems.length > 0) {
@@ -109,7 +224,7 @@ export const StackComposer = ({
     }
   };
 
-  const canSend = items.length > 0 || textInput.trim();
+  const canSend = items.length > 0 || textInput.trim() || voicePreview;
 
   return (
     <div className="border-t border-border bg-card">
@@ -141,6 +256,90 @@ export const StackComposer = ({
         )}
       </AnimatePresence>
 
+      {/* Voice recording UI */}
+      <AnimatePresence>
+        {(isRecording || voicePreview) && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-border"
+          >
+            {isRecording ? (
+              <div className="flex items-center gap-3 px-4 py-3 bg-destructive/5">
+                <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
+                <span className="text-sm font-mono text-destructive flex-1">{formatTime(recordingTime)}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="p-2 rounded-full bg-destructive text-destructive-foreground"
+                  >
+                    <Square className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelRecording}
+                    className="p-2 rounded-full hover:bg-destructive/10 text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : voicePreview ? (
+              <div className="flex items-center gap-3 px-4 py-3 bg-muted/30">
+                <button
+                  type="button"
+                  onClick={togglePreviewPlayback}
+                  className="p-2 rounded-full bg-primary/10 text-primary"
+                >
+                  {isPlayingPreview ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </button>
+                
+                {/* Waveform visualization */}
+                <div className="flex items-center gap-0.5 flex-1 h-8">
+                  {Array.from({ length: 30 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-1 rounded-full bg-primary/40"
+                      style={{
+                        height: `${Math.random() * 100}%`,
+                        minHeight: "4px",
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                <span className="text-xs text-muted-foreground">{formatTime(recordingTime)}</span>
+                
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={addVoiceToStack}
+                    className="text-xs text-primary px-2 py-1 rounded-full bg-primary/10 hover:bg-primary/20"
+                  >
+                    Add to stack
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelRecording}
+                    className="p-1.5 rounded-full hover:bg-muted text-muted-foreground"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                <audio
+                  ref={audioPreviewRef}
+                  src={voicePreview.url}
+                  onEnded={() => setIsPlayingPreview(false)}
+                />
+              </div>
+            ) : null}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Stack items preview */}
       <AnimatePresence>
         {items.length > 0 && (
@@ -162,6 +361,10 @@ export const StackComposer = ({
                   {item.type === "text" ? (
                     <div className="max-w-32 p-2 bg-muted rounded-lg text-sm truncate">
                       {item.content}
+                    </div>
+                  ) : item.type === "voice" || item.type === "audio" ? (
+                    <div className="h-16 w-16 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Mic className="h-6 w-6 text-primary" />
                     </div>
                   ) : item.preview ? (
                     item.type === "video" ? (
@@ -278,7 +481,7 @@ export const StackComposer = ({
             placeholder="Message..."
             className="min-h-10 max-h-32 resize-none rounded-2xl pr-10 input-field"
             rows={1}
-            disabled={disabled}
+            disabled={disabled || isRecording}
           />
           
           {textInput.trim() && items.length > 0 && (
@@ -301,10 +504,18 @@ export const StackComposer = ({
           >
             <Send className="h-5 w-5" />
           </Button>
+        ) : isRecording ? (
+          <Button
+            variant="destructive"
+            onClick={stopRecording}
+            className="h-10 w-10 rounded-full p-0"
+          >
+            <Square className="h-5 w-5" />
+          </Button>
         ) : (
           <Button
             variant="ghost"
-            onClick={onStartRecording}
+            onClick={startRecording}
             disabled={disabled}
             className="h-10 w-10 rounded-full p-0"
           >
@@ -313,11 +524,11 @@ export const StackComposer = ({
         )}
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden file input - accepts images, videos, and audio */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*,video/*,audio/*"
         multiple
         className="hidden"
         onChange={handleFileSelect}
