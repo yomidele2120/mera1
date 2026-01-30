@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Loader2 } from "lucide-react";
 import { ChatMediaViewer } from "./ChatMediaViewer";
+import { useSignedUrl, extractPrivateMediaPath, isPrivateMediaUrl } from "@/hooks/useSignedUrl";
 
 interface StackItem {
   id: string;
@@ -15,17 +16,28 @@ interface StackItem {
 interface StackItemRendererProps {
   item: StackItem;
   isOwn: boolean;
+  chatId: string;
   onLongPress?: () => void;
 }
 
-export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendererProps) => {
+export const StackItemRenderer = ({ item, isOwn, chatId, onLongPress }: StackItemRendererProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [showMediaViewer, setShowMediaViewer] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Handle private media signed URLs
+  const isPrivate = isPrivateMediaUrl(item.media_url);
+  const filePath = extractPrivateMediaPath(item.media_url);
+  const { signedUrl, loading: urlLoading, error: urlError } = useSignedUrl(
+    isPrivate ? filePath : item.media_url,
+    chatId,
+    isPrivate
+  );
+  const displayUrl = isPrivate ? signedUrl : item.media_url;
 
   const handleTouchStart = () => {
     longPressTimer.current = setTimeout(() => {
@@ -90,6 +102,24 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
   };
 
   const renderContent = () => {
+    // Show loading for private media that needs signed URL
+    if (urlLoading && isPrivate) {
+      return (
+        <div className="flex items-center justify-center p-4 min-w-[100px] min-h-[60px]">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    // Show error for failed private media
+    if (urlError && isPrivate) {
+      return (
+        <div className="text-xs text-destructive p-2">
+          Failed to load media
+        </div>
+      );
+    }
+
     switch (item.item_type) {
       case "text":
         return (
@@ -105,7 +135,7 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
         );
 
       case "image":
-        return item.media_url ? (
+        return displayUrl ? (
           <div
             className="relative cursor-pointer"
             onTouchStart={handleTouchStart}
@@ -115,7 +145,7 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
             onClick={handleMediaTap}
           >
             <img
-              src={item.media_url}
+              src={displayUrl}
               alt=""
               className="rounded-xl max-w-full max-h-64 object-cover"
               loading="lazy"
@@ -124,7 +154,7 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
         ) : null;
 
       case "video":
-        return item.media_url ? (
+        return displayUrl ? (
           <div
             className="relative rounded-xl overflow-hidden cursor-pointer"
             onTouchStart={handleTouchStart}
@@ -135,7 +165,7 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
           >
             <video
               ref={videoRef}
-              src={item.media_url}
+              src={displayUrl}
               className="max-w-full max-h-64 object-cover"
               muted={isMuted}
               playsInline
@@ -203,10 +233,10 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
               </div>
             </div>
             
-            {item.media_url && (
+            {displayUrl && (
               <audio
                 ref={audioRef}
-                src={item.media_url}
+                src={displayUrl}
                 onTimeUpdate={() => handleTimeUpdate(audioRef.current)}
                 onEnded={handleEnded}
               />
@@ -215,6 +245,7 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
         );
 
       case "gif":
+        // GIFs are external URLs, no signing needed
         return item.media_url ? (
           <img
             src={item.media_url}
@@ -230,6 +261,7 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
         ) : null;
 
       case "sticker":
+        // Stickers are external URLs, no signing needed
         return item.media_url ? (
           <img
             src={item.media_url}
@@ -254,12 +286,12 @@ export const StackItemRenderer = ({ item, isOwn, onLongPress }: StackItemRendere
     <>
       {renderContent()}
       
-      {/* Full-screen media viewer */}
-      {item.media_url && (
+      {/* Full-screen media viewer - use displayUrl for private media */}
+      {displayUrl && (
         <ChatMediaViewer
           media={[{
             type: getMediaType(),
-            url: item.media_url,
+            url: displayUrl,
           }]}
           isOpen={showMediaViewer}
           onClose={() => setShowMediaViewer(false)}

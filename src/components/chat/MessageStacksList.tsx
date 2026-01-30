@@ -6,6 +6,7 @@ import { TypingIndicator } from "@/components/chat/TypingIndicator";
 interface MessageStacksListProps {
   stacks: MessageStackData[];
   currentUserId: string;
+  chatId: string;
   isOtherTyping: boolean;
   onReply: (stackId: string, itemId?: string) => void;
   onReact: (stackId: string, emoji: string, itemId?: string) => void;
@@ -14,6 +15,7 @@ interface MessageStacksListProps {
 export const MessageStacksList = ({
   stacks,
   currentUserId,
+  chatId,
   isOtherTyping,
   onReply,
   onReact,
@@ -45,6 +47,7 @@ export const MessageStacksList = ({
         <MessageStack
           key={stack.id}
           stack={stack}
+          chatId={chatId}
           isOwn={stack.sender_id === currentUserId}
           onReply={onReply}
           onReact={onReact}
