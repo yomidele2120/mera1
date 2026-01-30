@@ -815,6 +815,7 @@ const ChatPage = () => {
           <MessageStacksList
             stacks={stacks}
             currentUserId={user?.id || ""}
+            chatId={chatId || ""}
             isOtherTyping={isOtherTyping}
             onReply={(stackId, itemId) => {
               const stack = stacks.find((s) => s.id === stackId);

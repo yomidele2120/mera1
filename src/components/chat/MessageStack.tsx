@@ -39,6 +39,7 @@ export interface MessageStackData {
 
 interface MessageStackProps {
   stack: MessageStackData;
+  chatId: string;
   isOwn: boolean;
   onReply: (stackId: string, itemId?: string) => void;
   onReact: (stackId: string, emoji: string, itemId?: string) => void;
@@ -47,7 +48,7 @@ interface MessageStackProps {
 const SWIPE_THRESHOLD = 50;
 const EMOJI_OPTIONS = ["❤️", "😂", "😮", "😢", "🔥", "👏"];
 
-export const MessageStack = ({ stack, isOwn, onReply, onReact }: MessageStackProps) => {
+export const MessageStack = ({ stack, chatId, isOwn, onReply, onReact }: MessageStackProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showReactions, setShowReactions] = useState(false);
   const [activeItemForReaction, setActiveItemForReaction] = useState<string | null>(null);
@@ -152,6 +153,7 @@ export const MessageStack = ({ stack, isOwn, onReply, onReact }: MessageStackPro
                 <StackItemRenderer
                   item={currentItem}
                   isOwn={isOwn}
+                  chatId={chatId}
                   onLongPress={() => handleLongPress(currentItem?.id)}
                 />
               </motion.div>
