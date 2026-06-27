@@ -1,5 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { AccessToken } from 'npm:livekit-server-sdk@2.9.7';
+import { AccessToken, TrackSource } from 'npm:livekit-server-sdk@2.9.7';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       canPublish: true,
       canSubscribe: true,
       canPublishData: true,
-      canPublishSources: ['camera', 'microphone', 'screen_share', 'screen_share_audio'] as any,
+      canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO],
     });
 
     const token = await at.toJwt();
