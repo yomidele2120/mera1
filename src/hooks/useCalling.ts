@@ -38,7 +38,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
   const [activeCall, setActiveCall] = useState<CallLog | null>(null);
   const [callStatus, setCallStatus] = useState<string>('idle');
   const [callDuration, setCallDuration] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const { isAnyBlocked } = useBlocking(otherUserId);
 

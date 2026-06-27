@@ -15,7 +15,7 @@ export const VoiceRecorder = ({ onRecordingComplete, disabled }: VoiceRecorderPr
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startRecording = async () => {
     try {

@@ -31,7 +31,7 @@ export const VideoRecorder = ({ open, onClose, onRecordingComplete }: VideoRecor
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const trimStart = (trimRange[0] / 100) * duration;
   const trimEnd = (trimRange[1] / 100) * duration;
