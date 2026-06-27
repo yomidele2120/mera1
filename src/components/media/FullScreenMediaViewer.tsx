@@ -72,7 +72,7 @@ export const FullScreenMediaViewer = ({
   const [showControls_state, setShowControlsState] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const hideControlsTimeout = useRef<NodeJS.Timeout>();
+  const hideControlsTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   // Reset state when media changes
   useEffect(() => {
