@@ -80,9 +80,10 @@ export const useNotificationBadges = () => {
     fetchCounts();
 
     // Subscribe to realtime updates
+    const suffix = `${user.id}-${Math.random().toString(36).slice(2, 8)}`;
     const channels = [
       supabase
-        .channel("badge-messages")
+        .channel(`badge-messages-${suffix}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "messages" },
@@ -90,7 +91,7 @@ export const useNotificationBadges = () => {
         )
         .subscribe(),
       supabase
-        .channel("badge-notifications")
+        .channel(`badge-notifications-${suffix}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "notifications" },
@@ -98,7 +99,7 @@ export const useNotificationBadges = () => {
         )
         .subscribe(),
       supabase
-        .channel("badge-friend-requests")
+        .channel(`badge-friend-requests-${suffix}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "friend_requests" },
@@ -106,7 +107,7 @@ export const useNotificationBadges = () => {
         )
         .subscribe(),
       supabase
-        .channel("badge-calls")
+        .channel(`badge-calls-${suffix}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "call_logs" },
