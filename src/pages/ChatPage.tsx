@@ -51,8 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CallButton } from "@/components/call/CallButton";
-import { useCallContext } from "@/components/call/CallProvider";
+import { CallButton } from "@/components/livekit/CallButton";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -123,7 +122,7 @@ const ChatPage = () => {
 
   const { handleTyping } = useTypingIndicator(chatId, user?.id);
   const { isBlocked, isAnyBlocked, blockUser, unblockUser, loading: blockLoading } = useBlocking(otherUser?.id);
-  const { startCall } = useCallContext();
+  
   
   // Topic-based threads
   const { topics, activeTopicId, selectTopic, createTopic, updateTopic } = useTopics(chatId);
@@ -150,18 +149,7 @@ const ChatPage = () => {
       });
     }
   }, [postContext, otherUser]);
-  // Call handlers
-  const handleVoiceCall = () => {
-    if (otherUser && !isAnyBlocked) {
-      startCall(otherUser.id, 'voice');
-    }
-  };
-
-  const handleVideoCall = () => {
-    if (otherUser && !isAnyBlocked) {
-      startCall(otherUser.id, 'video');
-    }
-  };
+  
   
   useTypingSubscription(chatId, user?.id, useCallback((isTyping: boolean) => {
     setIsOtherTyping(isTyping);
@@ -747,11 +735,24 @@ const ChatPage = () => {
             </div>
           </Link>
         )}
-        <CallButton
-          onVoiceCall={handleVoiceCall}
-          onVideoCall={handleVideoCall}
-          disabled={isAnyBlocked}
-        />
+        {chatId && user && (
+          <>
+            <CallButton
+              roomName={chatId}
+              myName={profile?.username ?? user.email ?? "User"}
+              myIdentity={user.id}
+              mode="voice"
+              disabled={isAnyBlocked}
+            />
+            <CallButton
+              roomName={chatId}
+              myName={profile?.username ?? user.email ?? "User"}
+              myIdentity={user.id}
+              mode="video"
+              disabled={isAnyBlocked}
+            />
+          </>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">

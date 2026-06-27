@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FullPageLoader } from "@/components/common/LoadingSpinner";
-import { CallProvider } from "@/components/call/CallProvider";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { OfflineIndicator } from "@/components/common/OfflineIndicator";
 
@@ -129,15 +128,13 @@ const App = () => (
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <CallProvider>
-            <TooltipProvider>
-              <OfflineIndicator />
-              <PushNotificationInit />
-              <Toaster />
-              <Sonner />
-              <AppRoutes />
-            </TooltipProvider>
-          </CallProvider>
+          <TooltipProvider>
+            <OfflineIndicator />
+            <PushNotificationInit />
+            <Toaster />
+            <Sonner />
+            <AppRoutes />
+          </TooltipProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
