@@ -1,5 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { AccessToken } from 'npm:livekit-server-sdk@2.9.7';
+import { AccessToken, TrackSource } from 'npm:livekit-server-sdk@2.9.7';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
