@@ -117,7 +117,7 @@ export const PostContextMenu = ({
     setLoading(false);
 
     if (chatId) {
-      navigate(`/chat/${chatId}`);
+      navigate(`/messages/${chatId}`);
     }
     onClose();
   };
