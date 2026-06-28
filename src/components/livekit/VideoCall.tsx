@@ -33,6 +33,7 @@ interface VideoCallProps {
   roomName: string;
   callMode?: CallMode;
   onDisconnected?: () => void;
+  onRemoteJoined?: () => void;
   className?: string;
 }
 
