@@ -91,7 +91,7 @@ export const PostContextMenu = ({
 
     if (chatId) {
       // Navigate to chat with post context
-      navigate(`/chat/${chatId}`, {
+      navigate(`/messages/${chatId}`, {
         state: {
           replyToPost: {
             id: postId,
@@ -117,7 +117,7 @@ export const PostContextMenu = ({
     setLoading(false);
 
     if (chatId) {
-      navigate(`/chat/${chatId}`);
+      navigate(`/messages/${chatId}`);
     }
     onClose();
   };
