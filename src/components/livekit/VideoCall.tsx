@@ -33,6 +33,7 @@ interface VideoCallProps {
   roomName: string;
   callMode?: CallMode;
   onDisconnected?: () => void;
+  onRemoteJoined?: () => void;
   className?: string;
 }
 
@@ -294,9 +295,11 @@ function CtrlButton({
 function CallUI({
   callMode,
   onDisconnected,
+  onRemoteJoined,
 }: {
   callMode: CallMode;
   onDisconnected?: () => void;
+  onRemoteJoined?: () => void;
 }) {
   const room = useRoomContext();
   const remoteParticipants = useParticipants().filter(
@@ -305,6 +308,11 @@ function CallUI({
   const connected = remoteParticipants.length > 0;
   const seconds = useCallTimer(connected);
   const remoteName = remoteParticipants[0]?.name || remoteParticipants[0]?.identity;
+
+  // Fire onRemoteJoined exactly once when first remote arrives
+  useEffect(() => {
+    if (connected) onRemoteJoined?.();
+  }, [connected, onRemoteJoined]);
 
   useEffect(() => {
     const handler = () => onDisconnected?.();
@@ -315,6 +323,11 @@ function CallUI({
   }, [room, onDisconnected]);
 
   const leave = async () => {
+    try {
+      if ("vibrate" in navigator) navigator.vibrate(20);
+    } catch {
+      /* noop */
+    }
     await room.disconnect();
     onDisconnected?.();
   };
@@ -325,31 +338,52 @@ function CallUI({
         "relative flex h-full w-full flex-col",
         callMode === "video"
           ? "bg-black"
-          : "bg-gradient-to-br from-slate-900 via-primary/30 to-slate-900"
+          : "bg-gradient-to-br from-slate-950 via-primary/25 to-slate-900"
       )}
     >
       <RoomAudioRenderer />
 
       {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between px-5 pt-6">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="relative z-10 flex items-center justify-between px-5 pt-[max(1.5rem,env(safe-area-inset-top))]"
+      >
         <div>
-          <p className="text-xs uppercase tracking-wider text-white/60">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">
             {callMode === "video" ? "Video call" : "Voice call"}
           </p>
           <p className="text-base font-semibold text-white">
             {remoteName || "Connecting…"}
           </p>
         </div>
-        <div className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-md">
+        <motion.div
+          key={connected ? "live" : "ringing"}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className={cn(
+            "rounded-full px-3 py-1.5 text-sm font-medium backdrop-blur-md",
+            connected
+              ? "bg-white/15 text-white"
+              : "bg-primary/30 text-white animate-pulse"
+          )}
+        >
           {connected ? formatDuration(seconds) : "Ringing…"}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Stage */}
       {callMode === "video" ? <VideoStage /> : <VoiceStage />}
 
       {/* Controls */}
-      <CallControls mode={callMode} onLeave={leave} room={room} />
+      <motion.div
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 22, stiffness: 220 }}
+      >
+        <CallControls mode={callMode} onLeave={leave} room={room} />
+      </motion.div>
     </div>
   );
 }
@@ -359,6 +393,7 @@ export function VideoCall({
   serverUrl,
   callMode = "video",
   onDisconnected,
+  onRemoteJoined,
   className = "",
 }: VideoCallProps) {
   return (
@@ -372,7 +407,11 @@ export function VideoCall({
         onDisconnected={onDisconnected}
         style={{ height: "100%", width: "100%" }}
       >
-        <CallUI callMode={callMode} onDisconnected={onDisconnected} />
+        <CallUI
+          callMode={callMode}
+          onDisconnected={onDisconnected}
+          onRemoteJoined={onRemoteJoined}
+        />
       </LiveKitRoom>
     </div>
   );
