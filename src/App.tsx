@@ -130,11 +130,13 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <TooltipProvider>
-            <OfflineIndicator />
-            <PushNotificationInit />
-            <Toaster />
-            <Sonner />
-            <AppRoutes />
+            <CallProvider>
+              <OfflineIndicator />
+              <PushNotificationInit />
+              <Toaster />
+              <Sonner />
+              <AppRoutes />
+            </CallProvider>
           </TooltipProvider>
         </AuthProvider>
       </BrowserRouter>
