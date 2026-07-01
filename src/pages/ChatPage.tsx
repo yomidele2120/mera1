@@ -735,22 +735,10 @@ const ChatPage = () => {
             </div>
           </Link>
         )}
-        {chatId && user && (
+        {chatId && user && otherUser && (
           <>
-            <CallButton
-              roomName={chatId}
-              myName={profile?.username ?? user.email ?? "User"}
-              myIdentity={user.id}
-              mode="voice"
-              disabled={isAnyBlocked}
-            />
-            <CallButton
-              roomName={chatId}
-              myName={profile?.username ?? user.email ?? "User"}
-              myIdentity={user.id}
-              mode="video"
-              disabled={isAnyBlocked}
-            />
+            <CallButton receiverId={otherUser.id} mode="voice" disabled={isAnyBlocked} />
+            <CallButton receiverId={otherUser.id} mode="video" disabled={isAnyBlocked} />
           </>
         )}
         <DropdownMenu>

@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FullPageLoader } from "@/components/common/LoadingSpinner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { OfflineIndicator } from "@/components/common/OfflineIndicator";
+import { CallProvider } from "@/components/call/CallProvider";
 
 // Lazy load pages for code splitting
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -129,11 +130,13 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <TooltipProvider>
-            <OfflineIndicator />
-            <PushNotificationInit />
-            <Toaster />
-            <Sonner />
-            <AppRoutes />
+            <CallProvider>
+              <OfflineIndicator />
+              <PushNotificationInit />
+              <Toaster />
+              <Sonner />
+              <AppRoutes />
+            </CallProvider>
           </TooltipProvider>
         </AuthProvider>
       </BrowserRouter>
