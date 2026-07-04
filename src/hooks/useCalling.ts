@@ -32,6 +32,12 @@ interface UseCallingProps {
   otherUserId?: string;
 }
 
+const CALL_SELECT = `
+  *,
+  caller:profiles!call_logs_caller_id_fkey (id, username, avatar_url, user_number),
+  receiver:profiles!call_logs_receiver_id_fkey (id, username, avatar_url, user_number)
+`;
+
 export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
   const { user } = useAuth();
   const [incomingCall, setIncomingCall] = useState<CallLog | null>(null);
@@ -72,16 +78,10 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
     return `call_${callerId.slice(0, 8)}_${receiverId.slice(0, 8)}_${timestamp}`;
   }, []);
 
-  const callSelect = `
-    *,
-    caller:profiles!call_logs_caller_id_fkey (id, username, avatar_url, user_number),
-    receiver:profiles!call_logs_receiver_id_fkey (id, username, avatar_url, user_number)
-  `;
-
   const fetchCallById = useCallback(async (callId: string) => {
     const { data, error } = await supabase
       .from('call_logs')
-      .select(callSelect)
+      .select(CALL_SELECT)
       .eq('id', callId)
       .maybeSingle();
 
@@ -145,7 +145,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
           call_type: callType,
           status: 'ringing'
         })
-        .select(callSelect)
+        .select(CALL_SELECT)
         .single();
 
       if (error) throw error;
@@ -169,7 +169,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
           started_at: new Date().toISOString()
         })
         .eq('id', callId)
-        .select(callSelect)
+        .select(CALL_SELECT)
         .single();
 
       if (error) throw error;
@@ -320,7 +320,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
     const fetchPendingIncomingCall = async () => {
       const { data, error } = await supabase
         .from('call_logs')
-        .select(callSelect)
+        .select(CALL_SELECT)
         .eq('receiver_id', user.id)
         .eq('status', 'ringing')
         .order('created_at', { ascending: false })
