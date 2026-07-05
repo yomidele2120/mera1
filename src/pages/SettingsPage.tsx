@@ -212,10 +212,13 @@ const SettingsPage = () => {
                         .replace(/(\d{3})(\d{3})(\d{4})/, "$1 · $2 · $3")
                     : "Use this to let others find you"
                 }
-                action={<UserNumber userNumber={profile?.user_number ?? null} showCopyButton />}
+                action={
+                  <UserNumber
+                    userNumber={profile?.user_number ?? null}
+                    copyOnly
+                  />
+                }
               />
-              {/* Hide the redundant number text inside <UserNumber> so only the copy button shows on the right */}
-              <style>{`.settings-userid-wrap span.font-mono{display:none}`}</style>
             </SettingsSection>
 
             {/* Preferences Section */}
