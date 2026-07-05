@@ -226,17 +226,24 @@ const NotificationsPage = () => {
           >
             <Link
               to={getNotificationLink(notification)}
-              className={`card-base p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors ${
-                !notification.seen ? "bg-primary/5 border-primary/20" : ""
+              className={`relative overflow-hidden card-base p-4 flex items-center gap-3 hover:bg-muted/30 transition-colors ${
+                !notification.seen ? "bg-primary/[0.04]" : ""
               }`}
             >
+              {!notification.seen && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-0 bottom-0 w-1"
+                  style={{ background: "var(--gradient-primary)" }}
+                />
+              )}
               <div className="relative">
                 <UserAvatar
                   src={notification.actor.avatar_url}
                   fallback={notification.actor.username}
                   size="md"
                 />
-                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background flex items-center justify-center">
+                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background border border-border flex items-center justify-center">
                   {getNotificationIcon(notification.type)}
                 </div>
               </div>
@@ -245,12 +252,15 @@ const NotificationsPage = () => {
                   <span className="font-semibold">{notification.actor.username}</span>{" "}
                   {getNotificationText(notification)}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                 </p>
               </div>
               {!notification.seen && (
-                <div className="h-2 w-2 rounded-full gradient-primary" />
+                <div
+                  className="h-2 w-2 rounded-full shrink-0 gradient-glow"
+                  style={{ background: "var(--gradient-primary)" }}
+                />
               )}
             </Link>
           </motion.div>
