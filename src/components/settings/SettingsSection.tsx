@@ -14,14 +14,19 @@ export const SettingsSection = ({
   children,
 }: SettingsSectionProps) => {
   return (
-    <div className="card-base p-0 overflow-hidden">
-      <div className="px-4 py-3 border-b border-border">
-        <h3 className="font-semibold text-foreground">{title}</h3>
+    <div className="space-y-2">
+      {/* Section header — uppercase, small, muted (iOS-style) */}
+      <div className="px-1">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {title}
+        </h3>
         {description && (
-          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+          <p className="text-xs text-muted-foreground/80 mt-0.5">{description}</p>
         )}
       </div>
-      <div className="divide-y divide-border">{children}</div>
+      <div className="rounded-2xl bg-card border border-border/60 overflow-hidden shadow-card divide-y divide-border/60">
+        {children}
+      </div>
     </div>
   );
 };
@@ -49,23 +54,43 @@ export const SettingsItem = ({
     <Comp
       onClick={onClick}
       className={cn(
-        "flex items-center gap-4 w-full px-4 py-3 text-left transition-colors",
-        onClick && "hover:bg-muted/50 cursor-pointer",
-        danger && "text-destructive hover:bg-destructive/10"
+        "group flex items-center gap-3 w-full px-4 py-3.5 text-left transition-colors",
+        onClick && "hover:bg-muted/40 active:bg-muted/60 cursor-pointer",
+        danger && "hover:bg-destructive/10"
       )}
     >
       {icon && (
-        <div className={cn("text-muted-foreground", danger && "text-destructive")}>
+        <div
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground [&>svg]:h-[18px] [&>svg]:w-[18px]",
+            danger && "bg-destructive/10 text-destructive"
+          )}
+        >
           {icon}
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className={cn("font-medium", danger && "text-destructive")}>{label}</p>
+        <p
+          className={cn(
+            "text-[15px] font-medium leading-tight text-foreground",
+            danger && "text-destructive"
+          )}
+        >
+          {label}
+        </p>
         {description && (
-          <p className="text-sm text-muted-foreground truncate">{description}</p>
+          <p className="text-[13px] text-muted-foreground truncate mt-0.5">
+            {description}
+          </p>
         )}
       </div>
-      {action ? action : onClick && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+      {action ? (
+        <div className="shrink-0">{action}</div>
+      ) : (
+        onClick && (
+          <ChevronRight className="h-4 w-4 text-muted-foreground/70 transition-transform group-active:translate-x-0.5" />
+        )
+      )}
     </Comp>
   );
 };
