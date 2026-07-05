@@ -62,24 +62,31 @@ export const FeedStoriesBar = ({ stories }: FeedStoriesBarProps) => {
             whileTap={{ scale: 0.95 }}
             className="flex flex-col items-center gap-1"
           >
-            <div className={`h-16 w-16 rounded-2xl overflow-hidden ${
-              storyUser.hasUnseenStory 
-                ? "ring-2 ring-primary ring-offset-2 ring-offset-background" 
-                : "ring-1 ring-border"
-            }`}>
-              {storyUser.avatar_url ? (
-                <img
-                  src={storyUser.avatar_url}
-                  alt={storyUser.username}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <span className="text-lg font-bold text-muted-foreground">
-                    {storyUser.username.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+            <div
+              className={`h-16 w-16 rounded-2xl overflow-hidden p-[2px] ${
+                storyUser.hasUnseenStory ? "" : "bg-border/60"
+              }`}
+              style={
+                storyUser.hasUnseenStory
+                  ? { background: "var(--gradient-primary)" }
+                  : undefined
+              }
+            >
+              <div className="h-full w-full rounded-[14px] overflow-hidden bg-card">
+                {storyUser.avatar_url ? (
+                  <img
+                    src={storyUser.avatar_url}
+                    alt={storyUser.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <span className="text-lg font-bold text-muted-foreground">
+                      {storyUser.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             <span className="text-xs text-foreground max-w-16 truncate">
               {storyUser.username}
