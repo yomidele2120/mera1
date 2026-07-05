@@ -39,29 +39,37 @@ interface ChatPreview {
   };
 }
 
-// AI Chat Contact Component
+// AI Chat Contact — pinned, distinct elevated + gradient-bordered card
 const AIContactCard = () => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
+    className="relative"
   >
     <Link
       to="/messages/ai"
-      className="card-base p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors border-l-4 border-l-primary"
+      className="gradient-border rounded-2xl p-4 flex items-center gap-3 surface-elevated hover:brightness-110 transition-all block"
     >
       <div className="relative">
-        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-          <Sparkles className="h-6 w-6 text-primary-foreground" />
+        <div
+          className="h-12 w-12 rounded-2xl flex items-center justify-center gradient-glow animate-pulse-glow"
+          style={{ background: "var(--gradient-primary)" }}
+        >
+          <Sparkles className="h-6 w-6 text-primary-foreground" strokeWidth={2.4} />
         </div>
-        <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <p className="font-semibold text-foreground">MERA AI</p>
-          <span className="text-xs text-primary font-medium">AI Assistant</span>
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-foreground tracking-tight">MERA AI</p>
+          <span
+            className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md text-primary-foreground"
+            style={{ background: "var(--gradient-primary)" }}
+          >
+            AI
+          </span>
         </div>
-        <p className="text-sm text-muted-foreground truncate">
-          Ask me anything! I'm here to help 😊
+        <p className="text-sm text-muted-foreground truncate mt-0.5">
+          Ask me anything — I'm here to help
         </p>
       </div>
     </Link>
