@@ -205,9 +205,17 @@ const SettingsPage = () => {
               <SettingsItem
                 icon={<Hash className="h-5 w-5" />}
                 label="Your User ID"
-                description="Use this to let others find you"
-                action={<UserNumber userNumber={profile?.user_number ?? null} />}
+                description={
+                  profile?.user_number
+                    ? profile.user_number
+                        .toString()
+                        .replace(/(\d{3})(\d{3})(\d{4})/, "$1 · $2 · $3")
+                    : "Use this to let others find you"
+                }
+                action={<UserNumber userNumber={profile?.user_number ?? null} showCopyButton />}
               />
+              {/* Hide the redundant number text inside <UserNumber> so only the copy button shows on the right */}
+              <style>{`.settings-userid-wrap span.font-mono{display:none}`}</style>
             </SettingsSection>
 
             {/* Preferences Section */}
