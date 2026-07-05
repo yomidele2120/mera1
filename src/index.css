@@ -290,6 +290,41 @@
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
+
+  /* Elevated surface (tier 3) — for pinned/featured cards */
+  .surface-elevated {
+    background: hsl(var(--popover));
+    box-shadow: var(--shadow-float);
+  }
+
+  /* Gradient border (AI/feature accents) */
+  .gradient-border {
+    position: relative;
+    background: hsl(var(--card));
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1.5px;
+    border-radius: inherit;
+    background: var(--gradient-primary);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Signature gradient glow (subtle) */
+  .gradient-glow {
+    box-shadow: 0 0 24px -4px hsl(28 100% 58% / 0.5);
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(28 100% 58% / 0.5); }
+    50% { box-shadow: 0 0 20px 4px hsl(28 100% 58% / 0.35); }
+  }
+  .animate-pulse-glow { animation: pulse-glow 2.2s ease-in-out infinite; }
 }
 
 @layer components {
