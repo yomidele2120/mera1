@@ -1,7 +1,6 @@
 import { Bell, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useNotificationBadges } from "@/hooks/useNotificationBadges";
-import meraLogo from "@/assets/mera-logo.png";
 
 export const MobileTopHeader = () => {
   const location = useLocation();
@@ -11,42 +10,55 @@ export const MobileTopHeader = () => {
   if (location.pathname !== "/" && location.pathname !== "/feed") return null;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50 safe-top md:hidden">
+    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/60 safe-top md:hidden">
       <div className="flex items-center justify-between px-4 py-3">
-        {/* Left side - Notifications */}
-        <div className="flex items-center">
-          <Link
-            to="/notifications"
-            className="relative p-2 rounded-full transition-colors text-muted-foreground hover:bg-muted"
-          >
-            <Bell className="h-5 w-5" />
-            {unreadNotifications > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
-                {unreadNotifications > 9 ? "9+" : unreadNotifications}
-              </span>
-            )}
-          </Link>
-        </div>
-
-        {/* Center - App logo */}
-        <Link to="/" className="absolute left-1/2 -translate-x-1/2">
-          <img src={meraLogo} alt="Mera" className="h-8 w-auto" />
+        {/* Left - Notifications */}
+        <Link
+          to="/notifications"
+          className="relative p-2 -m-2 rounded-full text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Notifications"
+        >
+          <Bell className="h-[22px] w-[22px]" strokeWidth={2} />
+          {unreadNotifications > 0 && (
+            <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full gradient-primary text-[10px] font-bold flex items-center justify-center text-primary-foreground gradient-glow">
+              {unreadNotifications > 9 ? "9+" : unreadNotifications}
+            </span>
+          )}
         </Link>
 
-        {/* Right side - Messages */}
-        <div className="flex items-center gap-4">
-          <Link
-            to="/messages"
-            className="relative p-2 rounded-full transition-colors text-muted-foreground hover:bg-muted"
+        {/* Center - Wordmark */}
+        <Link
+          to="/"
+          className="absolute left-1/2 -translate-x-1/2"
+          aria-label="Home"
+        >
+          <span
+            className="font-display text-[26px] font-extrabold tracking-tight leading-none"
+            style={{
+              backgroundImage: "var(--gradient-primary)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+              letterSpacing: "-0.02em",
+            }}
           >
-            <MessageCircle className="h-5 w-5" />
-            {unreadMessages > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
-                {unreadMessages > 9 ? "9+" : unreadMessages}
-              </span>
-            )}
-          </Link>
-        </div>
+            Mera
+          </span>
+        </Link>
+
+        {/* Right - Messages */}
+        <Link
+          to="/messages"
+          className="relative p-2 -m-2 rounded-full text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Messages"
+        >
+          <MessageCircle className="h-[22px] w-[22px]" strokeWidth={2} />
+          {unreadMessages > 0 && (
+            <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full gradient-primary text-[10px] font-bold flex items-center justify-center text-primary-foreground gradient-glow">
+              {unreadMessages > 9 ? "9+" : unreadMessages}
+            </span>
+          )}
+        </Link>
       </div>
     </header>
   );
