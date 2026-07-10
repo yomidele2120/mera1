@@ -103,6 +103,7 @@ export const IncomingCallModal = ({ call, onAccept, onReject }: IncomingCallModa
               size="lg"
               className="h-16 w-16 rounded-full"
               onClick={() => handleReject(call.id)}
+              aria-label="Decline call"
             >
               <PhoneOff className="h-6 w-6" />
             </Button>
@@ -110,6 +111,7 @@ export const IncomingCallModal = ({ call, onAccept, onReject }: IncomingCallModa
               size="lg"
               className="h-16 w-16 rounded-full bg-green-500 hover:bg-green-600"
               onClick={() => handleAccept(call.id)}
+              aria-label="Accept call"
             >
               <Phone className="h-6 w-6" />
             </Button>
