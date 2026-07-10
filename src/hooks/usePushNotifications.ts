@@ -220,12 +220,12 @@ export const usePushNotifications = () => {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'call_logs'
+          table: 'calls'
         },
         async (payload) => {
-          const call = payload.new as { caller_id: string; receiver_id: string; status: string };
+          const call = payload.new as { caller_id: string; callee_id: string; status: string };
           
-          if (call.receiver_id !== user.id || call.status !== 'missed') return;
+          if (call.callee_id !== user.id || call.status !== 'missed') return;
 
           if (document.hidden) {
             const { data: caller } = await supabase

@@ -6,7 +6,7 @@ import { useBlocking } from './useBlocking';
 export interface CallLog {
   id: string;
   caller_id: string;
-  receiver_id: string;
+  callee_id: string;
   room_name: string;
   call_type: 'voice' | 'video';
   status: 'pending' | 'ringing' | 'ongoing' | 'completed' | 'missed' | 'rejected' | 'cancelled';
@@ -34,8 +34,8 @@ interface UseCallingProps {
 
 const CALL_SELECT = `
   *,
-  caller:profiles!call_logs_caller_id_fkey (id, username, avatar_url, user_number),
-  receiver:profiles!call_logs_receiver_id_fkey (id, username, avatar_url, user_number)
+  caller:profiles!calls_caller_id_fkey (id, username, avatar_url, user_number),
+  receiver:profiles!calls_callee_id_fkey (id, username, avatar_url, user_number)
 `;
 
 export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
@@ -80,7 +80,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
 
   const fetchCallById = useCallback(async (callId: string) => {
     const { data, error } = await supabase
-      .from('call_logs')
+      .from('calls')
       .select(CALL_SELECT)
       .eq('id', callId)
       .maybeSingle();
@@ -96,17 +96,17 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
   const reconcileCallState = useCallback((call: CallLog) => {
     const isCurrentActive = activeCallRef.current?.id === call.id;
     const isCurrentIncoming = incomingCallRef.current?.id === call.id;
-    const isParticipant = call.caller_id === user?.id || call.receiver_id === user?.id;
+    const isParticipant = call.caller_id === user?.id || call.callee_id === user?.id;
 
     if (!isParticipant) return;
 
-    if (call.status === 'ringing' && call.receiver_id === user?.id && !activeCallRef.current) {
+    if (call.status === 'ringing' && call.callee_id === user?.id && !activeCallRef.current) {
       setIncomingCall(call);
       return;
     }
 
     if (call.status === 'ongoing') {
-      if (isCurrentActive || isCurrentIncoming || call.caller_id === user?.id || call.receiver_id === user?.id) {
+      if (isCurrentActive || isCurrentIncoming || call.caller_id === user?.id || call.callee_id === user?.id) {
         setActiveCall(call);
         setIncomingCall(null);
         setCallStatus('connected');
@@ -137,10 +137,10 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
     
     try {
       const { data, error } = await supabase
-        .from('call_logs')
+        .from('calls')
         .insert({
           caller_id: user.id,
-          receiver_id: receiverId,
+          callee_id: receiverId,
           room_name: roomName,
           call_type: callType,
           status: 'ringing'
@@ -163,7 +163,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
   const acceptCall = useCallback(async (callId: string) => {
     try {
       const { data, error } = await supabase
-        .from('call_logs')
+        .from('calls')
         .update({
           status: 'ongoing',
           started_at: new Date().toISOString()
@@ -190,7 +190,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
   const rejectCall = useCallback(async (callId: string) => {
     try {
       const { error } = await supabase
-        .from('call_logs')
+        .from('calls')
         .update({
           status: 'rejected',
           ended_at: new Date().toISOString()
@@ -215,7 +215,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
       const durationSeconds = callDuration;
 
       const { error } = await supabase
-        .from('call_logs')
+        .from('calls')
         .update({
           status: 'completed',
           ended_at: endedAt,
@@ -241,7 +241,7 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
 
     try {
       const { error } = await supabase
-        .from('call_logs')
+        .from('calls')
         .update({
           status: 'cancelled',
           ended_at: new Date().toISOString()
@@ -269,10 +269,11 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'call_logs',
-          filter: `receiver_id=eq.${user.id}`
+          table: 'calls',
+          filter: `callee_id=eq.${user.id}`
         },
         async (payload) => {
+          console.log('incoming call received', payload);
           const call = payload.new;
           if (call.status === 'ringing') {
             const fullCall = await fetchCallById(call.id);
@@ -285,15 +286,18 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'call_logs'
+          table: 'calls'
         },
         async (payload) => {
+          console.log('call status update received', payload);
           const call = payload.new;
           const fullCall = await fetchCallById(call.id);
           reconcileCallState(fullCall ?? (call as CallLog));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('incoming-calls subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -319,9 +323,9 @@ export const useCalling = ({ otherUserId }: UseCallingProps = {}) => {
 
     const fetchPendingIncomingCall = async () => {
       const { data, error } = await supabase
-        .from('call_logs')
+        .from('calls')
         .select(CALL_SELECT)
-        .eq('receiver_id', user.id)
+        .eq('callee_id', user.id)
         .eq('status', 'ringing')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -375,13 +379,13 @@ export const useCallHistory = () => {
 
     const fetchCalls = async () => {
       const { data, error } = await supabase
-        .from('call_logs')
+        .from('calls')
         .select(`
           *,
-          caller:profiles!call_logs_caller_id_fkey (id, username, avatar_url, user_number),
-          receiver:profiles!call_logs_receiver_id_fkey (id, username, avatar_url, user_number)
+          caller:profiles!calls_caller_id_fkey (id, username, avatar_url, user_number),
+          receiver:profiles!calls_callee_id_fkey (id, username, avatar_url, user_number)
         `)
-        .or(`caller_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .or(`caller_id.eq.${user.id},callee_id.eq.${user.id}`)
         .order('created_at', { ascending: false })
         .limit(50);
 

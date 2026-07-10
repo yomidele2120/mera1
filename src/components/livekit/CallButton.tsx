@@ -9,7 +9,7 @@ interface CallButtonProps {
   receiverId: string;
   mode?: CallMode;
   disabled?: boolean;
-  /** @deprecated kept for backwards-compat; ignored (room_name comes from call_logs). */
+  /** @deprecated kept for backwards-compat; ignored (room_name comes from calls). */
   roomName?: string;
   /** @deprecated kept for backwards-compat. */
   myName?: string;

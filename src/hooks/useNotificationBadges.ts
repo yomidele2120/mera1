@@ -59,9 +59,9 @@ export const useNotificationBadges = () => {
       // Fetch missed calls (last 24 hours)
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { count: missedCalls } = await supabase
-        .from("call_logs")
+        .from("calls")
         .select("*", { count: "exact", head: true })
-        .eq("receiver_id", user.id)
+        .eq("callee_id", user.id)
         .eq("status", "missed")
         .gte("created_at", oneDayAgo);
 
@@ -110,7 +110,7 @@ export const useNotificationBadges = () => {
         .channel(`badge-calls-${suffix}`)
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "call_logs" },
+          { event: "*", schema: "public", table: "calls" },
           fetchCounts
         )
         .subscribe(),

@@ -80,15 +80,15 @@ const NotificationsPage = () => {
 
     try {
       const { data, error } = await supabase
-        .from("call_logs")
+        .from("calls")
         .select(`
           id,
           caller_id,
           call_type,
           created_at,
-          caller:profiles!call_logs_caller_id_fkey (username, avatar_url, user_number)
+          caller:profiles!calls_caller_id_fkey (username, avatar_url, user_number)
         `)
-        .eq("receiver_id", user.id)
+        .eq("callee_id", user.id)
         .in("status", ["missed", "rejected"])
         .order("created_at", { ascending: false })
         .limit(50);
@@ -134,8 +134,8 @@ const NotificationsPage = () => {
         {
           event: "*",
           schema: "public",
-          table: "call_logs",
-          filter: `receiver_id=eq.${user?.id}`,
+          table: "calls",
+          filter: `callee_id=eq.${user?.id}`,
         },
         () => {
           fetchMissedCalls();

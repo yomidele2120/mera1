@@ -14,7 +14,7 @@ const CallsPage = () => {
   const navigate = useNavigate();
 
   const handleCallClick = async (call: CallLog) => {
-    const otherUserId = call.caller_id === user?.id ? call.receiver_id : call.caller_id;
+    const otherUserId = call.caller_id === user?.id ? call.callee_id : call.caller_id;
     
     // Find or create chat with this user
     const { data: existingChat } = await supabase
