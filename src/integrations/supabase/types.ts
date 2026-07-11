@@ -112,57 +112,42 @@ export type Database = {
           call_type: string
           callee_id: string
           caller_id: string
+          caller_name: string
           created_at: string
           duration_seconds: number | null
           ended_at: string | null
           id: string
-          room_name: string
+          room_id: string
           started_at: string | null
           status: string
-          updated_at: string
         }
         Insert: {
           call_type?: string
           callee_id: string
           caller_id: string
+          caller_name: string
           created_at?: string
           duration_seconds?: number | null
           ended_at?: string | null
           id?: string
-          room_name: string
+          room_id: string
           started_at?: string | null
           status?: string
-          updated_at?: string
         }
         Update: {
           call_type?: string
           callee_id?: string
           caller_id?: string
+          caller_name?: string
           created_at?: string
           duration_seconds?: number | null
           ended_at?: string | null
           id?: string
-          room_name?: string
+          room_id?: string
           started_at?: string | null
           status?: string
-          updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "calls_callee_id_fkey"
-            columns: ["callee_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "calls_caller_id_fkey"
-            columns: ["caller_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       chats: {
         Row: {
