@@ -51,7 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CallButton } from "@/components/livekit/CallButton";
+import { CallButton } from "@/components/call";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
