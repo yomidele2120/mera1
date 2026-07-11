@@ -126,8 +126,8 @@ const CallsPage = () => {
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition text-left"
                   >
                     <UserAvatar
-                      username={other?.username ?? call.caller_name}
-                      avatarUrl={other?.avatar_url ?? undefined}
+                      src={other?.avatar_url ?? undefined}
+                      fallback={(other?.username ?? call.caller_name ?? "U").charAt(0).toUpperCase()}
                       size="md"
                     />
                     <div className="flex-1 min-w-0">
