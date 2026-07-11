@@ -125,19 +125,33 @@ const AppRoutes = () => {
   );
 };
 
+const CallSignalingLayer = () => {
+  const { user, profile } = useAuth();
+  const { incomingCall, acceptCall, declineCall } = useCallSignaling(user?.id ?? "");
+  if (!incomingCall || !user) return null;
+  return (
+    <IncomingCallOverlay
+      incomingCall={incomingCall}
+      currentUserID={user.id}
+      currentUserName={profile?.full_name || profile?.username || user.email || "User"}
+      onAccept={acceptCall}
+      onDecline={declineCall}
+    />
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
           <TooltipProvider>
-            <CallProvider>
-              <OfflineIndicator />
-              <PushNotificationInit />
-              <Toaster />
-              <Sonner />
-              <AppRoutes />
-            </CallProvider>
+            <OfflineIndicator />
+            <PushNotificationInit />
+            <Toaster />
+            <Sonner />
+            <AppRoutes />
+            <CallSignalingLayer />
           </TooltipProvider>
         </AuthProvider>
       </BrowserRouter>
