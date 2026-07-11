@@ -51,7 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CallButton } from "@/components/livekit/CallButton";
+import { CallButton } from "@/components/call";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -735,12 +735,30 @@ const ChatPage = () => {
             </div>
           </Link>
         )}
-        {chatId && user && otherUser && (
-          <>
-            <CallButton receiverId={otherUser.id} mode="voice" disabled={isAnyBlocked} />
-            <CallButton receiverId={otherUser.id} mode="video" disabled={isAnyBlocked} />
-          </>
-        )}
+        {chatId && user && otherUser && (() => {
+          const roomID = `call-${[user.id, otherUser.id].sort().join("-")}`;
+          const myName = profile?.full_name || profile?.username || "User";
+          return (
+            <>
+              <CallButton
+                roomID={roomID}
+                myID={user.id}
+                myName={myName}
+                calleeID={otherUser.id}
+                callType="voice"
+                disabled={isAnyBlocked}
+              />
+              <CallButton
+                roomID={roomID}
+                myID={user.id}
+                myName={myName}
+                calleeID={otherUser.id}
+                callType="video"
+                disabled={isAnyBlocked}
+              />
+            </>
+          );
+        })()}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">

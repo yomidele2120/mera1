@@ -79,22 +79,39 @@ const NotificationsPage = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      const { data: callRows, error } = await supabase
         .from("calls")
-        .select(`
-          id,
-          caller_id,
-          call_type,
-          created_at,
-          caller:profiles!calls_caller_id_fkey (username, avatar_url, user_number)
-        `)
+        .select("id, caller_id, call_type, created_at")
         .eq("callee_id", user.id)
-        .in("status", ["missed", "rejected"])
+        .in("status", ["declined", "ended"])
         .order("created_at", { ascending: false })
         .limit(50);
-
       if (error) throw error;
-      setMissedCalls((data || []) as MissedCall[]);
+
+      const callerIds = Array.from(new Set((callRows ?? []).map((c) => c.caller_id)));
+      const profileMap: Record<string, { username: string; avatar_url: string; user_number: number }> = {};
+      if (callerIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, username, avatar_url, user_number")
+          .in("id", callerIds);
+        for (const p of profs ?? []) {
+          profileMap[p.id] = {
+            username: p.username,
+            avatar_url: p.avatar_url ?? "",
+            user_number: p.user_number ?? 0,
+          };
+        }
+      }
+      setMissedCalls(
+        (callRows ?? []).map((c) => ({
+          id: c.id,
+          caller_id: c.caller_id,
+          call_type: c.call_type,
+          created_at: c.created_at,
+          caller: profileMap[c.caller_id] ?? { username: "Unknown", avatar_url: "", user_number: 0 },
+        })) as MissedCall[],
+      );
     } catch (error) {
       console.error("Error fetching missed calls:", error);
     }
