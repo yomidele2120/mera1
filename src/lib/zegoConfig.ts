@@ -1,16 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 
-let cache: Promise<{ appID: number; appSign: string }> | null = null;
-
-export function getZegoConfig() {
-  if (!cache) {
-    cache = supabase.functions.invoke("zego-config").then(({ data, error }) => {
-      if (error || !data?.appID || !data?.appSign) {
-        cache = null;
-        throw error ?? new Error("Failed to load Zego config");
-      }
-      return { appID: Number(data.appID), appSign: String(data.appSign) };
-    });
+export async function getZegoToken(userID: string): Promise<{ appID: number; token: string }> {
+  const { data, error } = await supabase.functions.invoke("zego-token", {
+    body: { userID },
+  });
+  if (error || !data?.appID || !data?.token) {
+    throw new Error(data?.error ?? error?.message ?? "Failed to load Zego token");
   }
-  return cache;
+  return { appID: Number(data.appID), token: String(data.token) };
 }
