@@ -26,7 +26,7 @@ export const StickyHeader = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border safe-top">
       <div className="flex items-center gap-4 px-4 py-3">
         {showBackButton && (
           <button
