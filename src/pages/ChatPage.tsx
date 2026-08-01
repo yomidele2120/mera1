@@ -704,7 +704,7 @@ const ChatPage = () => {
 
       {/* Header */}
       <header className={cn(
-        "flex items-center gap-3 border-b border-border p-4 bg-card z-10",
+        "flex items-center gap-3 border-b border-border p-4 bg-card z-10 safe-top",
         selectionMode && "pt-16"
       )}>
         <Link to="/messages" className="md:hidden">
