@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
-import { getZegoConfig } from "@/lib/zegoConfig";
+import { getZegoToken } from "@/lib/zegoConfig";
 
 interface ZegoCallProps {
   roomID: string;
@@ -20,14 +20,12 @@ export function ZegoCall({ roomID, userID, userName, callType, onLeave }: ZegoCa
     (async () => {
       if (!containerRef.current) return;
       try {
-        const { appID, appSign } = await getZegoConfig();
+        const { appID, token } = await getZegoToken(userID);
         if (cancelled || !containerRef.current) return;
 
-        // TODO: replace generateKitTokenForTest with a server-generated
-        // token before going to production.
-        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+        const kitToken = ZegoUIKitPrebuilt.generateKitTokenForProduction(
           appID,
-          appSign,
+          token,
           roomID,
           userID,
           userName,
