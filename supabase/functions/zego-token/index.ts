@@ -105,6 +105,12 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
   if (!userID) return json({ error: "userID is required" }, 400);
+  if (new TextEncoder().encode(userID).length > 32) {
+    return json({ error: "userID must be 32 bytes or fewer for Zego" }, 400);
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(userID)) {
+    return json({ error: "userID may only contain letters, numbers, and underscores" }, 400);
+  }
 
   try {
     const appID = Number(appIdRaw);
