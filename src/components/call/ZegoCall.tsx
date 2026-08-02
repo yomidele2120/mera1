@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
-import { getZegoToken } from "@/lib/zegoConfig";
+import { getZegoToken, toZegoUserID } from "@/lib/zegoConfig";
 
 interface ZegoCallProps {
   roomID: string;
@@ -20,17 +20,18 @@ export function ZegoCall({ roomID, userID, userName, callType, onLeave }: ZegoCa
     (async () => {
       if (!containerRef.current) return;
       try {
-        const { appID, token } = await getZegoToken(userID);
+        const zegoUserID = toZegoUserID(userID);
+        const { appID, token } = await getZegoToken(zegoUserID);
         if (cancelled || !containerRef.current) return;
 
         const kitToken = ZegoUIKitPrebuilt.generateKitTokenForProduction(
           appID,
           token,
           roomID,
-          userID,
+          zegoUserID,
           userName,
         );
-        console.log("[ZegoCall] joining room", { roomID, userID, callType });
+        console.log("[ZegoCall] joining room", { roomID, callType });
         zp = ZegoUIKitPrebuilt.create(kitToken);
         zp.joinRoom({
           container: containerRef.current,
