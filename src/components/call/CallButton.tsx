@@ -99,11 +99,15 @@ export function CallButton({
     setCallState("calling");
   };
 
-  const cancelCall = async () => {
+  const cancelCall = async (durationSeconds?: number) => {
     if (callID) {
       await supabase
         .from("calls")
-        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .update({
+          status: "ended",
+          ended_at: new Date().toISOString(),
+          ...(typeof durationSeconds === "number" ? { duration_seconds: durationSeconds } : {}),
+        })
         .eq("id", callID);
     }
     setCallState("idle");
@@ -117,8 +121,8 @@ export function CallButton({
         userID={myID}
         userName={myName}
         callType={callType}
-        onLeave={() => {
-          cancelCall();
+        onLeave={(durationSeconds) => {
+          cancelCall(durationSeconds);
         }}
       />
     );
@@ -146,7 +150,7 @@ export function CallButton({
         <div style={{ fontSize: "22px", fontWeight: 600 }}>Calling...</div>
         <div style={{ opacity: 0.7 }}>Waiting for answer</div>
         <button
-          onClick={cancelCall}
+          onClick={() => cancelCall()}
           aria-label="Cancel call"
           style={{
             marginTop: "16px",

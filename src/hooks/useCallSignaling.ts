@@ -76,12 +76,16 @@ export function useCallSignaling(currentUserID: string) {
     setIncomingCall(null);
   };
 
-  const endCall = async () => {
+  const endCall = async (durationSeconds?: number) => {
     if (!incomingCall) return;
-    console.log("[useCallSignaling] ending", incomingCall.id);
+    console.log("[useCallSignaling] ending", incomingCall.id, durationSeconds);
     await supabase
       .from("calls")
-      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .update({
+        status: "ended",
+        ended_at: new Date().toISOString(),
+        ...(typeof durationSeconds === "number" ? { duration_seconds: durationSeconds } : {}),
+      })
       .eq("id", incomingCall.id);
     setIncomingCall(null);
   };
