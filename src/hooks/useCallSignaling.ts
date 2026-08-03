@@ -76,5 +76,15 @@ export function useCallSignaling(currentUserID: string) {
     setIncomingCall(null);
   };
 
-  return { incomingCall, setIncomingCall, acceptCall, declineCall };
+  const endCall = async () => {
+    if (!incomingCall) return;
+    console.log("[useCallSignaling] ending", incomingCall.id);
+    await supabase
+      .from("calls")
+      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .eq("id", incomingCall.id);
+    setIncomingCall(null);
+  };
+
+  return { incomingCall, setIncomingCall, acceptCall, declineCall, endCall };
 }
