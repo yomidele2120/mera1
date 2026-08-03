@@ -8,7 +8,7 @@ interface IncomingCallOverlayProps {
   currentUserName: string;
   onAccept: () => void;
   onDecline: () => void;
-  onEnd?: () => void;
+  onEnd?: (durationSeconds: number) => void;
 }
 
 export function IncomingCallOverlay({
@@ -28,9 +28,9 @@ export function IncomingCallOverlay({
         userID={currentUserID}
         userName={currentUserName}
         callType={incomingCall.call_type}
-        onLeave={() => {
+        onLeave={(durationSeconds) => {
           setAccepted(false);
-          onEnd?.();
+          onEnd?.(durationSeconds);
         }}
       />
     );
