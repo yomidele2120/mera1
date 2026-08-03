@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { PhoneOff } from "lucide-react";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
 import { getZegoToken, toZegoUserID } from "@/lib/zegoConfig";
 
@@ -58,17 +59,51 @@ export function ZegoCall({ roomID, userID, userName, callType, onLeave }: ZegoCa
   }, [roomID, userID, userName, callType, onLeave]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: "100vw",
-        height: "100vh",
-        position: "fixed",
-        top: 0,
-        left: 0,
-        zIndex: 9999,
-        background: "#111",
-      }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        style={{
+          width: "100vw",
+          height: "100vh",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          zIndex: 9999,
+          background: "#111",
+        }}
+      />
+      <button
+        onClick={() => {
+          try {
+            if ("vibrate" in navigator) navigator.vibrate(30);
+          } catch {
+            /* noop */
+          }
+          onLeave();
+        }}
+        aria-label="End call"
+        title="End call"
+        style={{
+          position: "fixed",
+          left: "50%",
+          transform: "translateX(-50%)",
+          bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+          zIndex: 10000,
+          width: 68,
+          height: 68,
+          borderRadius: "50%",
+          background: "#ef4444",
+          color: "#fff",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+        }}
+      >
+        <PhoneOff size={28} />
+      </button>
+    </>
   );
 }

@@ -127,7 +127,7 @@ const AppRoutes = () => {
 
 const CallSignalingLayer = () => {
   const { user, profile } = useAuth();
-  const { incomingCall, acceptCall, declineCall } = useCallSignaling(user?.id ?? "");
+  const { incomingCall, acceptCall, declineCall, endCall } = useCallSignaling(user?.id ?? "");
   if (!incomingCall || !user) return null;
   return (
     <IncomingCallOverlay
@@ -136,6 +136,7 @@ const CallSignalingLayer = () => {
       currentUserName={profile?.full_name || profile?.username || user.email || "User"}
       onAccept={acceptCall}
       onDecline={declineCall}
+      onEnd={endCall}
     />
   );
 };

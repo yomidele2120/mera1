@@ -8,6 +8,7 @@ interface IncomingCallOverlayProps {
   currentUserName: string;
   onAccept: () => void;
   onDecline: () => void;
+  onEnd?: () => void;
 }
 
 export function IncomingCallOverlay({
@@ -16,6 +17,7 @@ export function IncomingCallOverlay({
   currentUserName,
   onAccept,
   onDecline,
+  onEnd,
 }: IncomingCallOverlayProps) {
   const [accepted, setAccepted] = useState(false);
 
@@ -26,7 +28,10 @@ export function IncomingCallOverlay({
         userID={currentUserID}
         userName={currentUserName}
         callType={incomingCall.call_type}
-        onLeave={() => setAccepted(false)}
+        onLeave={() => {
+          setAccepted(false);
+          onEnd?.();
+        }}
       />
     );
   }
