@@ -28,6 +28,8 @@ export function IncomingCallOverlay({
         userID={currentUserID}
         userName={currentUserName}
         callType={incomingCall.call_type}
+        peerName={incomingCall.caller_name}
+        peerAvatar={incomingCall.caller_avatar}
         onLeave={(durationSeconds) => {
           setAccepted(false);
           onEnd?.(durationSeconds);

@@ -7,6 +7,7 @@ export interface IncomingCall {
   caller_id: string;
   caller_name: string;
   call_type: "video" | "voice";
+  caller_avatar?: string | null;
 }
 
 export function useCallSignaling(currentUserID: string) {
@@ -45,6 +46,18 @@ export function useCallSignaling(currentUserID: string) {
               caller_name: call.caller_name,
               call_type: call.call_type,
             });
+            supabase
+              .from("profiles")
+              .select("avatar_url")
+              .eq("id", call.caller_id)
+              .maybeSingle()
+              .then(({ data }) => {
+                if (data?.avatar_url) {
+                  setIncomingCall((prev) =>
+                    prev && prev.id === call.id ? { ...prev, caller_avatar: data.avatar_url } : prev,
+                  );
+                }
+              });
           }
         },
       )
@@ -56,6 +69,34 @@ export function useCallSignaling(currentUserID: string) {
       supabase.removeChannel(channel);
     };
   }, [currentUserID]);
+
+  // Mirror the other side hanging up: if the call row is ended/declined elsewhere,
+  // tear the call down locally too.
+  useEffect(() => {
+    if (!incomingCall) return;
+    const channel = supabase
+      .channel("call-state-" + incomingCall.id)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "calls",
+          filter: `id=eq.${incomingCall.id}`,
+        },
+        (payload) => {
+          const status = (payload.new as { status: string }).status;
+          console.log("[useCallSignaling] call state:", status);
+          if (status === "ended" || status === "declined" || status === "missed") {
+            setIncomingCall(null);
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [incomingCall?.id]);
 
   const acceptCall = async () => {
     if (!incomingCall) return;
