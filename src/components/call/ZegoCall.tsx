@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
 import { getZegoToken, toZegoUserID } from "@/lib/zegoConfig";
-import { Avatar } from "@/components/common/Avatar";
+import { UserAvatar } from "@/components/common/Avatar";
 
 interface ZegoCallProps {
   roomID: string;
@@ -405,7 +405,7 @@ export function ZegoCall({
               boxShadow: "0 0 0 0 rgba(249,115,22,0.5)",
             }}
           >
-            <Avatar src={peerAvatar ?? undefined} fallback={peerName || "?"} size="lg" className="!w-[190px] !h-[190px] text-4xl" />
+            <UserAvatar src={peerAvatar ?? undefined} fallback={peerName || "?"} size="xl" className="!w-[190px] !h-[190px] text-4xl" />
           </div>
           {phase === "connecting" && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.75, fontSize: 14 }}>
