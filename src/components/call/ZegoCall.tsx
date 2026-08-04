@@ -129,8 +129,10 @@ export function ZegoCall({
     const unmute = () => {
       const root = containerRef.current;
       if (!root) return;
+      const local = (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream;
       root.querySelectorAll<HTMLMediaElement>("audio, video").forEach((el) => {
-        if (el.dataset.selfView === "true") return;
+        // Never unmute our own preview — that would cause echo.
+        if (local && (el as HTMLMediaElement & { srcObject?: MediaProvider | null }).srcObject === local) return;
         el.muted = false;
         el.volume = 1;
         const p = el.play();
@@ -252,7 +254,10 @@ export function ZegoCall({
     setSpeakerOn(next);
     const root = containerRef.current;
     if (!root) return;
-    const els = Array.from(root.querySelectorAll<HTMLMediaElement>("audio, video"));
+    const local = (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream;
+    const els = Array.from(root.querySelectorAll<HTMLMediaElement>("audio, video")).filter(
+      (el) => !local || (el as HTMLMediaElement & { srcObject?: MediaProvider | null }).srcObject !== local,
+    );
     for (const el of els) {
       el.muted = false;
       el.volume = next ? 1 : 0.45;
