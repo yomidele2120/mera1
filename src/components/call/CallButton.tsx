@@ -8,6 +8,8 @@ interface CallButtonProps {
   myID: string;
   myName: string;
   calleeID: string;
+  calleeName?: string;
+  calleeAvatar?: string | null;
   callType: "video" | "voice";
   disabled?: boolean;
 }
@@ -19,6 +21,8 @@ export function CallButton({
   myID,
   myName,
   calleeID,
+  calleeName,
+  calleeAvatar,
   callType,
   disabled,
 }: CallButtonProps) {
@@ -121,6 +125,8 @@ export function CallButton({
         userID={myID}
         userName={myName}
         callType={callType}
+        peerName={calleeName}
+        peerAvatar={calleeAvatar}
         onLeave={(durationSeconds) => {
           cancelCall(durationSeconds);
         }}

@@ -745,6 +745,8 @@ const ChatPage = () => {
                 myID={user.id}
                 myName={myName}
                 calleeID={otherUser.id}
+                calleeName={otherUser.username}
+                calleeAvatar={otherUser.avatar_url}
                 callType="voice"
                 disabled={isAnyBlocked}
               />
@@ -753,6 +755,8 @@ const ChatPage = () => {
                 myID={user.id}
                 myName={myName}
                 calleeID={otherUser.id}
+                calleeName={otherUser.username}
+                calleeAvatar={otherUser.avatar_url}
                 callType="video"
                 disabled={isAnyBlocked}
               />
