@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import type { IncomingCall } from "@/hooks/useCallSignaling";
-import { ZegoCall } from "./ZegoCall";
+const ZegoCall = lazy(() => import("./ZegoCall").then((m) => ({ default: m.ZegoCall })));
 
 interface IncomingCallOverlayProps {
   incomingCall: IncomingCall;
@@ -23,6 +23,7 @@ export function IncomingCallOverlay({
 
   if (accepted) {
     return (
+      <Suspense fallback={null}>
       <ZegoCall
         roomID={incomingCall.room_id}
         userID={currentUserID}
@@ -35,6 +36,7 @@ export function IncomingCallOverlay({
           onEnd?.(durationSeconds);
         }}
       />
+      </Suspense>
     );
   }
 

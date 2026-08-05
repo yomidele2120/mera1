@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Phone, Video, PhoneOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { ZegoCall } from "./ZegoCall";
+// Heavy (ZegoCloud SDK) — loaded only when a call actually starts
+const ZegoCall = lazy(() => import("./ZegoCall").then((m) => ({ default: m.ZegoCall })));
 
 interface CallButtonProps {
   roomID: string;
@@ -120,6 +121,7 @@ export function CallButton({
 
   if (callState === "accepted" && callID) {
     return (
+      <Suspense fallback={null}>
       <ZegoCall
         roomID={roomID}
         userID={myID}
@@ -131,6 +133,7 @@ export function CallButton({
           cancelCall(durationSeconds);
         }}
       />
+      </Suspense>
     );
   }
 
