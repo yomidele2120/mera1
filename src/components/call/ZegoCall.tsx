@@ -421,6 +421,34 @@ export function ZegoCall({
         : formatDuration(elapsed);
 
   const showVideoStage = callType === "video" && phase === "connected";
+  // In a connected video call the camera view owns the whole screen; the
+  // header + controls fade away and come back on tap.
+  const immersive = showVideoStage;
+  const overlayShown = !immersive || controlsVisible;
+
+  // Auto-hide the overlay during video calls
+  useEffect(() => {
+    if (!immersive || !controlsVisible) return;
+    const id = setTimeout(() => setControlsVisible(false), 4000);
+    return () => clearTimeout(id);
+  }, [immersive, controlsVisible, showMore]);
+
+  useEffect(() => {
+    if (!immersive) setControlsVisible(true);
+  }, [immersive]);
+
+  const overlayStyle = (): React.CSSProperties =>
+    immersive
+      ? {
+          position: "absolute",
+          left: 0,
+          right: 0,
+          zIndex: 2,
+          opacity: overlayShown ? 1 : 0,
+          pointerEvents: overlayShown ? "auto" : "none",
+          transition: "opacity 220ms ease, transform 220ms ease",
+        }
+      : { position: "relative", zIndex: 2 };
 
   return (
     <div
@@ -433,20 +461,23 @@ export function ZegoCall({
         color: "#fff",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
       }}
     >
-      {/* Zego media stage */}
+      {/* Zego media stage — fills the screen during a video call */}
       <div
         ref={containerRef}
+        onClick={() => immersive && setControlsVisible((v) => !v)}
         style={{
           position: "absolute",
           inset: 0,
           zIndex: 0,
           opacity: showVideoStage ? 1 : 0,
           pointerEvents: showVideoStage ? "auto" : "none",
-          background: showVideoStage ? "#111" : "transparent",
+          background: showVideoStage ? "#000" : "transparent",
         }}
       />
+
 
       {/* Header */}
       <div
