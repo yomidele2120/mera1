@@ -315,19 +315,81 @@ export function ZegoCall({
     }
   };
 
-  const switchCamera = async () => {
-    try {
-      const stream = localStream();
-      const track = stream?.getVideoTracks()[0];
-      const current = track?.getSettings().facingMode;
-      await track?.applyConstraints({
-        facingMode: current === "user" ? "environment" : "user",
-      });
-    } catch {
-      /* noop */
-    }
-    setShowMore(false);
+  const refreshLocalPreview = (stream: MediaStream) => {
+    const root = containerRef.current;
+    if (!root) return;
+    root.querySelectorAll<HTMLVideoElement>("video").forEach((el) => {
+      const src = el.srcObject;
+      if (src instanceof MediaStream && src.id === stream.id) {
+        el.srcObject = null;
+        el.srcObject = stream;
+        el.muted = true;
+        el.play().catch(() => undefined);
+      }
+    });
   };
+
+  const switchCamera = async () => {
+    setShowMore(false);
+    const stream = localStream();
+    const track = stream?.getVideoTracks()[0];
+    if (!stream || !track) return;
+    const next = facingRef.current === "user" ? "environment" : "user";
+
+    // 1) Preferred: let Zego swap the capture device (keeps publishing intact)
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter((d) => d.kind === "videoinput");
+      if (cams.length > 1) {
+        const currentId = track.getSettings().deviceId;
+        const target =
+          cams.find((c) =>
+            next === "environment"
+              ? /back|rear|environment/i.test(c.label)
+              : /front|user|face/i.test(c.label),
+          ) ??
+          cams.find((c) => c.deviceId !== currentId) ??
+          cams[0];
+
+        const express = (zpRef.current as unknown as {
+          express?: { useVideoDevice?: (s: MediaStream, id: string) => Promise<void> };
+        } | null)?.express;
+
+        if (express?.useVideoDevice) {
+          await express.useVideoDevice(stream, target.deviceId);
+          facingRef.current = next;
+          return;
+        }
+
+        // 2) Fallback: capture the other camera and swap the track in place
+        const fresh = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: target.deviceId } },
+          audio: false,
+        });
+        const newTrack = fresh.getVideoTracks()[0];
+        if (newTrack) {
+          newTrack.enabled = track.enabled;
+          stream.removeTrack(track);
+          track.stop();
+          stream.addTrack(newTrack);
+          refreshLocalPreview(stream);
+          facingRef.current = next;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("[ZegoCall] device-based camera switch failed", e);
+    }
+
+    // 3) Last resort: ask the same track to flip facing mode
+    try {
+      await track.applyConstraints({ facingMode: { ideal: next } } as MediaTrackConstraints);
+      facingRef.current = next;
+    } catch (e) {
+      console.warn("[ZegoCall] facingMode switch failed", e);
+    }
+  };
+
 
   const shareCall = async () => {
     const url = `${window.location.origin}${window.location.pathname}`;
