@@ -586,8 +586,10 @@ export function ZegoCall({
       {/* Control panel */}
       <div
         style={{
-          position: "relative",
-          zIndex: 2,
+          ...overlayStyle(),
+          ...(immersive
+            ? { bottom: 0, transform: overlayShown ? "translateY(0)" : "translateY(16px)" }
+            : null),
           margin: 12,
           marginBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
           borderRadius: 28,
@@ -600,6 +602,7 @@ export function ZegoCall({
           justifyItems: "center",
         }}
       >
+
         <ControlButton
           label="Audio"
           active={speakerOn}
