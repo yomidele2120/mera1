@@ -66,11 +66,14 @@ export function ZegoCall({
   const [speakerOn, setSpeakerOn] = useState(true);
   const [showMore, setShowMore] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
 
   const zpRef = useRef<ReturnType<typeof ZegoUIKitPrebuilt.create> | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const accumulatedRef = useRef(0);
   const leftRef = useRef(false);
+  const facingRef = useRef<"user" | "environment">("user");
+
 
   const totalDuration = useCallback(() => {
     const live = startedAtRef.current ? (Date.now() - startedAtRef.current) / 1000 : 0;
