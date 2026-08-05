@@ -126,26 +126,58 @@ export function ZegoCall({
     };
   }, []);
 
-  // Make sure remote audio really plays (autoplay/muted-element guards)
+  // Echo control + reliable remote audio playback.
+  // Local preview elements are force-muted (they are the #1 cause of echo),
+  // remote elements are unmuted and kept playing.
   useEffect(() => {
     if (phase !== "connected") return;
-    const unmute = () => {
+
+    const applyEchoConstraints = () => {
+      const local = (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream;
+      local?.getAudioTracks().forEach((t) => {
+        t.applyConstraints({
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } as MediaTrackConstraints).catch(() => undefined);
+      });
+    };
+
+    const tune = () => {
       const root = containerRef.current;
       if (!root) return;
       const local = (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream;
+      const localIds = new Set((local?.getTracks() ?? []).map((t) => t.id));
+
       root.querySelectorAll<HTMLMediaElement>("audio, video").forEach((el) => {
-        // Never unmute our own preview — that would cause echo.
-        if (local && (el as HTMLMediaElement & { srcObject?: MediaProvider | null }).srcObject === local) return;
+        const src = (el as HTMLMediaElement & { srcObject?: MediaProvider | null }).srcObject;
+        const stream = src instanceof MediaStream ? src : null;
+        const isLocal =
+          (local && src === local) ||
+          (!!stream && stream.getTracks().some((t) => localIds.has(t.id)));
+
+        if (isLocal) {
+          // Never play our own mic back — that is the echo.
+          el.muted = true;
+          el.volume = 0;
+          return;
+        }
         el.muted = false;
-        el.volume = 1;
+        el.volume = speakerOn ? 1 : 0.5;
         const p = el.play();
         if (p && typeof p.catch === "function") p.catch(() => undefined);
       });
     };
-    unmute();
-    const id = setInterval(unmute, 2000);
+
+    applyEchoConstraints();
+    tune();
+    const id = setInterval(() => {
+      applyEchoConstraints();
+      tune();
+    }, 2000);
     return () => clearInterval(id);
-  }, [phase]);
+  }, [phase, speakerOn]);
+
 
   // Join the room (re-runs when the user retries)
   useEffect(() => {
