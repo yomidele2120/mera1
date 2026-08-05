@@ -9,7 +9,6 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FullPageLoader } from "@/components/common/LoadingSpinner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { OfflineIndicator } from "@/components/common/OfflineIndicator";
-import { IncomingCallOverlay } from "@/components/call/IncomingCallOverlay";
 import { useCallSignaling } from "@/hooks/useCallSignaling";
 
 // Lazy load pages for code splitting
@@ -28,6 +27,9 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const CallsPage = lazy(() => import("./pages/CallsPage"));
 const FriendsPage = lazy(() => import("./pages/FriendsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const IncomingCallOverlay = lazy(() =>
+  import("@/components/call/IncomingCallOverlay").then((m) => ({ default: m.IncomingCallOverlay })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -130,6 +132,7 @@ const CallSignalingLayer = () => {
   const { incomingCall, acceptCall, declineCall, endCall } = useCallSignaling(user?.id ?? "");
   if (!incomingCall || !user) return null;
   return (
+    <Suspense fallback={null}>
     <IncomingCallOverlay
       incomingCall={incomingCall}
       currentUserID={user.id}
@@ -138,6 +141,7 @@ const CallSignalingLayer = () => {
       onDecline={declineCall}
       onEnd={endCall}
     />
+    </Suspense>
   );
 };
 
