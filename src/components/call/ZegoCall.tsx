@@ -482,8 +482,15 @@ export function ZegoCall({
       {/* Header */}
       <div
         style={{
-          position: "relative",
-          zIndex: 2,
+          ...overlayStyle(),
+          ...(immersive
+            ? {
+                top: 0,
+                background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0))",
+                paddingBottom: 26,
+                transform: overlayShown ? "translateY(0)" : "translateY(-12px)",
+              }
+            : null),
           paddingTop: "calc(14px + env(safe-area-inset-top, 0px))",
           paddingInline: 16,
           display: "flex",
@@ -491,6 +498,7 @@ export function ZegoCall({
           gap: 12,
         }}
       >
+
         <button
           onClick={() => setMinimizedInfo((v) => !v)}
           aria-label={minimizedInfo ? "Show call details" : "Hide call details"}
