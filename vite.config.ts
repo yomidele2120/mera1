@@ -95,20 +95,26 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          ui: [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-popover",
-            "@radix-ui/react-tooltip",
-          ],
-          animation: ["framer-motion"],
-          supabase: ["@supabase/supabase-js"],
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (/zegocloud/.test(id)) return "zego";
+          if (/react-router|react-dom|\/react\//.test(id)) return "vendor";
+          if (/@radix-ui/.test(id)) return "ui";
+          if (/framer-motion/.test(id)) return "animation";
+          if (/@supabase/.test(id)) return "supabase";
+          if (/lucide-react/.test(id)) return "icons";
+          return "deps";
         },
       },
     },
     target: "esnext",
     minify: "esbuild",
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1200,
   },
+  esbuild: {
+    // Strip debug logging from production builds
+    drop: mode === "production" ? ["console", "debugger"] : [],
+  },
+
 }));
