@@ -66,11 +66,14 @@ export function ZegoCall({
   const [speakerOn, setSpeakerOn] = useState(true);
   const [showMore, setShowMore] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
 
   const zpRef = useRef<ReturnType<typeof ZegoUIKitPrebuilt.create> | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const accumulatedRef = useRef(0);
   const leftRef = useRef(false);
+  const facingRef = useRef<"user" | "environment">("user");
+
 
   const totalDuration = useCallback(() => {
     const live = startedAtRef.current ? (Date.now() - startedAtRef.current) / 1000 : 0;
@@ -123,26 +126,58 @@ export function ZegoCall({
     };
   }, []);
 
-  // Make sure remote audio really plays (autoplay/muted-element guards)
+  // Echo control + reliable remote audio playback.
+  // Local preview elements are force-muted (they are the #1 cause of echo),
+  // remote elements are unmuted and kept playing.
   useEffect(() => {
     if (phase !== "connected") return;
-    const unmute = () => {
+
+    const applyEchoConstraints = () => {
+      const local = (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream;
+      local?.getAudioTracks().forEach((t) => {
+        t.applyConstraints({
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } as MediaTrackConstraints).catch(() => undefined);
+      });
+    };
+
+    const tune = () => {
       const root = containerRef.current;
       if (!root) return;
       const local = (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream;
+      const localIds = new Set((local?.getTracks() ?? []).map((t) => t.id));
+
       root.querySelectorAll<HTMLMediaElement>("audio, video").forEach((el) => {
-        // Never unmute our own preview — that would cause echo.
-        if (local && (el as HTMLMediaElement & { srcObject?: MediaProvider | null }).srcObject === local) return;
+        const src = (el as HTMLMediaElement & { srcObject?: MediaProvider | null }).srcObject;
+        const stream = src instanceof MediaStream ? src : null;
+        const isLocal =
+          (local && src === local) ||
+          (!!stream && stream.getTracks().some((t) => localIds.has(t.id)));
+
+        if (isLocal) {
+          // Never play our own mic back — that is the echo.
+          el.muted = true;
+          el.volume = 0;
+          return;
+        }
         el.muted = false;
-        el.volume = 1;
+        el.volume = speakerOn ? 1 : 0.5;
         const p = el.play();
         if (p && typeof p.catch === "function") p.catch(() => undefined);
       });
     };
-    unmute();
-    const id = setInterval(unmute, 2000);
+
+    applyEchoConstraints();
+    tune();
+    const id = setInterval(() => {
+      applyEchoConstraints();
+      tune();
+    }, 2000);
     return () => clearInterval(id);
-  }, [phase]);
+  }, [phase, speakerOn]);
+
 
   // Join the room (re-runs when the user retries)
   useEffect(() => {
@@ -280,19 +315,81 @@ export function ZegoCall({
     }
   };
 
-  const switchCamera = async () => {
-    try {
-      const stream = localStream();
-      const track = stream?.getVideoTracks()[0];
-      const current = track?.getSettings().facingMode;
-      await track?.applyConstraints({
-        facingMode: current === "user" ? "environment" : "user",
-      });
-    } catch {
-      /* noop */
-    }
-    setShowMore(false);
+  const refreshLocalPreview = (stream: MediaStream) => {
+    const root = containerRef.current;
+    if (!root) return;
+    root.querySelectorAll<HTMLVideoElement>("video").forEach((el) => {
+      const src = el.srcObject;
+      if (src instanceof MediaStream && src.id === stream.id) {
+        el.srcObject = null;
+        el.srcObject = stream;
+        el.muted = true;
+        el.play().catch(() => undefined);
+      }
+    });
   };
+
+  const switchCamera = async () => {
+    setShowMore(false);
+    const stream = localStream();
+    const track = stream?.getVideoTracks()[0];
+    if (!stream || !track) return;
+    const next = facingRef.current === "user" ? "environment" : "user";
+
+    // 1) Preferred: let Zego swap the capture device (keeps publishing intact)
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter((d) => d.kind === "videoinput");
+      if (cams.length > 1) {
+        const currentId = track.getSettings().deviceId;
+        const target =
+          cams.find((c) =>
+            next === "environment"
+              ? /back|rear|environment/i.test(c.label)
+              : /front|user|face/i.test(c.label),
+          ) ??
+          cams.find((c) => c.deviceId !== currentId) ??
+          cams[0];
+
+        const express = (zpRef.current as unknown as {
+          express?: { useVideoDevice?: (s: MediaStream, id: string) => Promise<void> };
+        } | null)?.express;
+
+        if (express?.useVideoDevice) {
+          await express.useVideoDevice(stream, target.deviceId);
+          facingRef.current = next;
+          return;
+        }
+
+        // 2) Fallback: capture the other camera and swap the track in place
+        const fresh = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: target.deviceId } },
+          audio: false,
+        });
+        const newTrack = fresh.getVideoTracks()[0];
+        if (newTrack) {
+          newTrack.enabled = track.enabled;
+          stream.removeTrack(track);
+          track.stop();
+          stream.addTrack(newTrack);
+          refreshLocalPreview(stream);
+          facingRef.current = next;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("[ZegoCall] device-based camera switch failed", e);
+    }
+
+    // 3) Last resort: ask the same track to flip facing mode
+    try {
+      await track.applyConstraints({ facingMode: { ideal: next } } as MediaTrackConstraints);
+      facingRef.current = next;
+    } catch (e) {
+      console.warn("[ZegoCall] facingMode switch failed", e);
+    }
+  };
+
 
   const shareCall = async () => {
     const url = `${window.location.origin}${window.location.pathname}`;
@@ -324,6 +421,34 @@ export function ZegoCall({
         : formatDuration(elapsed);
 
   const showVideoStage = callType === "video" && phase === "connected";
+  // In a connected video call the camera view owns the whole screen; the
+  // header + controls fade away and come back on tap.
+  const immersive = showVideoStage;
+  const overlayShown = !immersive || controlsVisible;
+
+  // Auto-hide the overlay during video calls
+  useEffect(() => {
+    if (!immersive || !controlsVisible) return;
+    const id = setTimeout(() => setControlsVisible(false), 4000);
+    return () => clearTimeout(id);
+  }, [immersive, controlsVisible, showMore]);
+
+  useEffect(() => {
+    if (!immersive) setControlsVisible(true);
+  }, [immersive]);
+
+  const overlayStyle = (): React.CSSProperties =>
+    immersive
+      ? {
+          position: "absolute",
+          left: 0,
+          right: 0,
+          zIndex: 2,
+          opacity: overlayShown ? 1 : 0,
+          pointerEvents: overlayShown ? "auto" : "none",
+          transition: "opacity 220ms ease, transform 220ms ease",
+        }
+      : { position: "relative", zIndex: 2 };
 
   return (
     <div
@@ -336,26 +461,36 @@ export function ZegoCall({
         color: "#fff",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
       }}
     >
-      {/* Zego media stage */}
+      {/* Zego media stage — fills the screen during a video call */}
       <div
         ref={containerRef}
+        onClick={() => immersive && setControlsVisible((v) => !v)}
         style={{
           position: "absolute",
           inset: 0,
           zIndex: 0,
           opacity: showVideoStage ? 1 : 0,
           pointerEvents: showVideoStage ? "auto" : "none",
-          background: showVideoStage ? "#111" : "transparent",
+          background: showVideoStage ? "#000" : "transparent",
         }}
       />
+
 
       {/* Header */}
       <div
         style={{
-          position: "relative",
-          zIndex: 2,
+          ...overlayStyle(),
+          ...(immersive
+            ? {
+                top: 0,
+                background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0))",
+                paddingBottom: 26,
+                transform: overlayShown ? "translateY(0)" : "translateY(-12px)",
+              }
+            : null),
           paddingTop: "calc(14px + env(safe-area-inset-top, 0px))",
           paddingInline: 16,
           display: "flex",
@@ -363,6 +498,7 @@ export function ZegoCall({
           gap: 12,
         }}
       >
+
         <button
           onClick={() => setMinimizedInfo((v) => !v)}
           aria-label={minimizedInfo ? "Show call details" : "Hide call details"}
@@ -450,8 +586,10 @@ export function ZegoCall({
       {/* Control panel */}
       <div
         style={{
-          position: "relative",
-          zIndex: 2,
+          ...overlayStyle(),
+          ...(immersive
+            ? { bottom: 0, transform: overlayShown ? "translateY(0)" : "translateY(16px)" }
+            : null),
           margin: 12,
           marginBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
           borderRadius: 28,
@@ -464,6 +602,7 @@ export function ZegoCall({
           justifyItems: "center",
         }}
       >
+
         <ControlButton
           label="Audio"
           active={speakerOn}

@@ -20,7 +20,20 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // Keep the huge calling SDK out of the install-time precache so the
+        // app shell downloads fast; it is cached on first use instead.
+        globIgnores: ["**/zego-*.js"],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/zego-.*\.js$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "zego-sdk-cache",
+              expiration: { maxEntries: 3, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",
@@ -95,20 +108,26 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          ui: [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-popover",
-            "@radix-ui/react-tooltip",
-          ],
-          animation: ["framer-motion"],
-          supabase: ["@supabase/supabase-js"],
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (/zegocloud/.test(id)) return "zego";
+          if (/react-router|react-dom|\/react\//.test(id)) return "vendor";
+          if (/@radix-ui/.test(id)) return "ui";
+          if (/framer-motion/.test(id)) return "animation";
+          if (/@supabase/.test(id)) return "supabase";
+          if (/lucide-react/.test(id)) return "icons";
+          return "deps";
         },
       },
     },
     target: "esnext",
     minify: "esbuild",
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1200,
   },
+  esbuild: {
+    // Strip debug logging from production builds
+    drop: mode === "production" ? ["console", "debugger"] : [],
+  },
+
 }));
