@@ -20,7 +20,20 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // Keep the huge calling SDK out of the install-time precache so the
+        // app shell downloads fast; it is cached on first use instead.
+        globIgnores: ["**/zego-*.js"],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/zego-.*\.js$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "zego-sdk-cache",
+              expiration: { maxEntries: 3, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",
