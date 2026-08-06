@@ -19,6 +19,7 @@ import {
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
 import { getZegoToken, toZegoUserID } from "@/lib/zegoConfig";
 import { UserAvatar } from "@/components/common/Avatar";
+import { useAdaptiveVideoQuality, type ZegoExpressLike } from "@/hooks/useAdaptiveVideoQuality";
 
 interface ZegoCallProps {
   roomID: string;

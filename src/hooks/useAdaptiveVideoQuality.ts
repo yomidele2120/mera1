@@ -34,7 +34,7 @@ interface Sample {
   videoKbps: number;
 }
 
-type ExpressLike = {
+export type ZegoExpressLike = {
   on?: (event: string, cb: (...args: unknown[]) => void) => void;
   off?: (event: string, cb?: (...args: unknown[]) => void) => void;
   setVideoConfig?: (
@@ -46,7 +46,7 @@ type ExpressLike = {
 interface Options {
   /** Only adapt while the call is actually connected and sending video. */
   enabled: boolean;
-  getExpress: () => ExpressLike | null;
+  getExpress: () => ZegoExpressLike | null;
   getStream: () => MediaStream | null;
 }
 
