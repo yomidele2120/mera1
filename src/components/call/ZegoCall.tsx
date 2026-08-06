@@ -19,6 +19,7 @@ import {
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
 import { getZegoToken, toZegoUserID } from "@/lib/zegoConfig";
 import { UserAvatar } from "@/components/common/Avatar";
+import { useAdaptiveVideoQuality, type ZegoExpressLike } from "@/hooks/useAdaptiveVideoQuality";
 
 interface ZegoCallProps {
   roomID: string;
@@ -258,8 +259,25 @@ export function ZegoCall({
     };
   }, [roomID, userID, userName, callType, handleLeave, sessionKey]);
 
-  const localStream = () =>
-    (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream ?? null;
+  const localStream = useCallback(
+    () => (zpRef.current as unknown as { localStream?: MediaStream } | null)?.localStream ?? null,
+    [],
+  );
+
+  const getExpress = useCallback(
+    () =>
+      (zpRef.current as unknown as { express?: ZegoExpressLike } | null)?.express ?? null,
+    [],
+  );
+
+
+  // Adapt outgoing resolution/bitrate to the measured network quality.
+  const { degraded, label: qualityLabel } = useAdaptiveVideoQuality({
+    enabled: callType === "video" && phase === "connected",
+    getExpress,
+    getStream: localStream,
+  });
+
 
   const toggleMic = () => {
     const next = !micOn;
@@ -580,6 +598,33 @@ export function ZegoCall({
         >
           <WifiOff size={15} />
           Reconnecting… attempt {attempt}/{MAX_ATTEMPTS}
+        </div>
+      )}
+
+      {/* Adaptive quality indicator */}
+      {phase === "connected" && degraded && overlayShown && (
+        <div
+          style={{
+            position: "fixed",
+            top: "calc(96px + env(safe-area-inset-top, 0px))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 14px",
+            borderRadius: 999,
+            background: "rgba(20,16,14,0.75)",
+            backdropFilter: "blur(10px)",
+            fontSize: 12,
+            fontWeight: 600,
+            opacity: 0.9,
+            transition: "opacity 200ms ease",
+          }}
+        >
+          <WifiOff size={13} />
+          {qualityLabel} — video quality adjusted
         </div>
       )}
 
