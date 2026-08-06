@@ -108,22 +108,20 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
+        // Only isolate the huge calling SDK. Splitting React/Radix/etc. into
+        // separate manual chunks breaks module init order in production
+        // ("Cannot read properties of undefined (reading 'createContext')"),
+        // which rendered a blank white page.
         manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (/zegocloud/.test(id)) return "zego";
-          if (/react-router|react-dom|\/react\//.test(id)) return "vendor";
-          if (/@radix-ui/.test(id)) return "ui";
-          if (/framer-motion/.test(id)) return "animation";
-          if (/@supabase/.test(id)) return "supabase";
-          if (/lucide-react/.test(id)) return "icons";
-          return "deps";
+          if (id.includes("node_modules") && /zegocloud/.test(id)) return "zego";
+          return undefined;
         },
       },
     },
     target: "esnext",
     minify: "esbuild",
     cssCodeSplit: true,
-    chunkSizeWarningLimit: 1200,
+    chunkSizeWarningLimit: 1600,
   },
   esbuild: {
     // Strip debug logging from production builds
