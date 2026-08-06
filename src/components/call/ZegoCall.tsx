@@ -265,10 +265,10 @@ export function ZegoCall({
 
   const getExpress = useCallback(
     () =>
-      (zpRef.current as unknown as { express?: Parameters<typeof useAdaptiveVideoQuality>[0]["getExpress"] extends () => infer R ? R : never } | null)
-        ?.express ?? null,
+      (zpRef.current as unknown as { express?: ZegoExpressLike } | null)?.express ?? null,
     [],
   );
+
 
   // Adapt outgoing resolution/bitrate to the measured network quality.
   const { degraded, label: qualityLabel } = useAdaptiveVideoQuality({
