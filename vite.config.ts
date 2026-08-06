@@ -18,6 +18,12 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: false, // Use external manifest.json
       workbox: {
+        // Push/notification handlers live in a separate file so the generated
+        // service worker does not clobber them.
+        importScripts: ["/push-sw.js"],
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         // Keep the huge calling SDK out of the install-time precache so the
