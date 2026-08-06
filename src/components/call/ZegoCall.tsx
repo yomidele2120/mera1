@@ -601,6 +601,33 @@ export function ZegoCall({
         </div>
       )}
 
+      {/* Adaptive quality indicator */}
+      {phase === "connected" && degraded && overlayShown && (
+        <div
+          style={{
+            position: "fixed",
+            top: "calc(96px + env(safe-area-inset-top, 0px))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 14px",
+            borderRadius: 999,
+            background: "rgba(20,16,14,0.75)",
+            backdropFilter: "blur(10px)",
+            fontSize: 12,
+            fontWeight: 600,
+            opacity: 0.9,
+            transition: "opacity 200ms ease",
+          }}
+        >
+          <WifiOff size={13} />
+          {qualityLabel} — video quality adjusted
+        </div>
+      )}
+
       {/* Control panel */}
       <div
         style={{
